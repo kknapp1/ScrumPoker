@@ -1,0 +1,44 @@
+.controls {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.revealButton {
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  transition: background var(--transition-fast), opacity var(--transition-fast);
+  min-width: 180px;
+}
+
+.revealButton:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.revealButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.resetButton {
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.resetButton:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}

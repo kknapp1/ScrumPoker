@@ -1,0 +1,104 @@
+name: Deploy to Sandbox
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # allow manual triggers
+
+permissions:
+  contents: read
+  id-token: write  # required for OIDC auth with AWS
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    environment: sandbox
+
+    steps:
+      # ── Checkout ─────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Node + frontend build ─────────────────────────────────
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+        env:
+          # Phase 2: add VITE_WS_ENDPOINT secret here
+          VITE_ENV: sandbox
+
+      # ── Terraform ────────────────────────────────────────────
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.7'
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-2
+
+      - name: Terraform Init
+        working-directory: terraform/envs/sandbox
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: terraform/envs/sandbox
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: terraform/envs/sandbox
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: terraform/envs/sandbox
+        run: terraform apply -auto-approve tfplan
+
+      # ── Sync frontend to S3 ───────────────────────────────────
+      - name: Get Terraform outputs
+        id: tf_outputs
+        working-directory: terraform/envs/sandbox
+        run: |
+          echo "bucket=$(terraform output -raw frontend_bucket)" >> $GITHUB_OUTPUT
+          echo "cf_id=$(terraform output -raw cloudfront_distribution_id)" >> $GITHUB_OUTPUT
+          echo "cf_domain=$(terraform output -raw cloudfront_domain)" >> $GITHUB_OUTPUT
+
+      - name: Sync frontend to S3
+        run: |
+          # Upload assets with long-lived cache (they are fingerprinted by Vite)
+          aws s3 sync frontend/dist/assets s3://${{ steps.tf_outputs.outputs.bucket }}/assets \
+            --cache-control "public, max-age=31536000, immutable" \
+            --delete
+
+          # Upload everything else with short cache
+          aws s3 sync frontend/dist s3://${{ steps.tf_outputs.outputs.bucket }} \
+            --cache-control "public, max-age=60" \
+            --exclude "assets/*" \
+            --delete
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ steps.tf_outputs.outputs.cf_id }} \
+            --paths "/*"
+
+      - name: Deployment summary
+        run: |
+          echo "### ✅ Sandbox deployed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://${{ steps.tf_outputs.outputs.cf_domain }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY

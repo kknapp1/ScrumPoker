@@ -1,0 +1,44 @@
+name: Deploy to Production
+
+# FUTURE FEATURE — gated production deployment
+# This workflow is a placeholder. To activate:
+#   1. Create a "production" GitHub Environment with required reviewers
+#   2. Add AWS_DEPLOY_ROLE_ARN secret to the production environment
+#   3. Add terraform/envs/production/ (copy from sandbox, update vars)
+#   4. Uncomment the trigger below
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm production deployment'
+        required: true
+
+# on:
+#   release:
+#     types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  gate:
+    name: Confirm intent
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check confirmation input
+        if: ${{ github.event.inputs.confirm != 'deploy' }}
+        run: |
+          echo "Confirmation input was '${{ github.event.inputs.confirm }}', expected 'deploy'. Aborting."
+          exit 1
+
+  deploy:
+    name: Deploy Production
+    needs: gate
+    runs-on: ubuntu-latest
+    environment: production  # requires manual approval from environment reviewers
+
+    steps:
+      - run: echo "Production deployment coming in a future phase."
+      # TODO: mirror deploy-sandbox.yml steps, pointing at terraform/envs/production
