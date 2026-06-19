@@ -1,5 +1,10 @@
 variable "bucket_name" {
-  description = "S3 bucket name for frontend assets"
+  description = "Existing app bucket for this AWS account (created in terraform/bootstrap)"
+  type        = string
+}
+
+variable "key_prefix" {
+  description = "Folder prefix within bucket_name for frontend deploys, e.g. \"deploy\" (no leading/trailing slash)"
   type        = string
 }
 

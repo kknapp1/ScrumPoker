@@ -14,19 +14,33 @@ provider "aws" {
 }
 
 locals {
-  env  = "sandbox"
+  env = "sandbox"
   tags = {
     Project     = "scrum-poker"
     Environment = local.env
     ManagedBy   = "terraform"
+    Owner       = "Kenny Knapp"
   }
 }
 
 module "frontend" {
   source      = "../../modules/frontend-hosting"
-  bucket_name = "scrum-poker-frontend-${local.env}"
+  bucket_name = var.bucket_name
+  key_prefix  = var.deploy_prefix
   environment = local.env
   tags        = local.tags
+}
+
+module "deploy_role" {
+  source             = "../../modules/github-deploy-role"
+  role_name          = "scrumpoker-sandbox-github-actions"
+  policy_name        = "scrum-poker-sandbox-github-actions-policy"
+  repo               = var.repo
+  github_environment = local.env
+  bucket_name        = var.bucket_name
+  builds_prefix      = var.builds_prefix
+  deploy_prefix      = var.deploy_prefix
+  tags               = local.tags
 }
 
 # ── Outputs consumed by GitHub Actions ────────────────────────
@@ -39,6 +53,22 @@ output "frontend_bucket" {
   value = module.frontend.bucket_name
 }
 
+output "frontend_key_prefix" {
+  value = module.frontend.key_prefix
+}
+
+output "builds_bucket" {
+  value = var.bucket_name
+}
+
+output "builds_prefix" {
+  value = var.builds_prefix
+}
+
 output "cloudfront_distribution_id" {
   value = module.frontend.cloudfront_distribution_id
+}
+
+output "deploy_role_arn" {
+  value = module.deploy_role.role_arn
 }
