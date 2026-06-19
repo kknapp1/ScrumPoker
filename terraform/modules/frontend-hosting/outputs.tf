@@ -1,9 +1,14 @@
 output "bucket_name" {
-  value = aws_s3_bucket.frontend.id
+  value = data.aws_s3_bucket.frontend.id
 }
 
 output "bucket_arn" {
-  value = aws_s3_bucket.frontend.arn
+  value = data.aws_s3_bucket.frontend.arn
+}
+
+output "key_prefix" {
+  value       = var.key_prefix
+  description = "Folder within bucket_name that this environment's frontend is deployed under"
 }
 
 output "cloudfront_domain" {
