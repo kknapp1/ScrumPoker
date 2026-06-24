@@ -46,13 +46,13 @@ module "deploy_role" {
   bucket_name        = var.bucket_name
   builds_prefix      = var.builds_prefix
   deploy_prefix      = var.deploy_prefix
-  app_table_arns = [
-    module.app_tables.connections_table_arn,
-    module.app_tables.connections_table_gsi_arn,
-    module.app_tables.rooms_table_arn,
-    module.app_tables.votes_table_arn,
-  ]
-  tags = local.tags
+  tags               = local.tags
+  # app_table_arns intentionally left at its wildcard default (scrumpoker-*)
+  # rather than wired to module.app_tables outputs: referencing the actual
+  # table ARNs would make this policy update depend on the tables already
+  # existing, forcing Terraform to attempt CreateTable before the permission
+  # to do so is granted — the same chicken-and-egg trap documented in
+  # CLAUDE.md for data-source reads, but here on resource creation order.
 }
 
 # ── Outputs consumed by GitHub Actions ────────────────────────
