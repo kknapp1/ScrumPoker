@@ -1,0 +1,35 @@
+name: Dependabot auto-merge
+
+# Auto-merges Dependabot's own patch/minor PRs once they're green — major
+# version bumps always wait for manual review. This relies on `gh pr merge
+# --auto`, which waits for whatever checks are already running on the PR
+# (pr-validation.yml runs on every PR regardless of author) before merging.
+# No branch protection is required for --auto to behave this way, which is
+# intentional: it keeps this gate scoped to Dependabot's PRs without
+# changing how human PRs/direct pushes to main work.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Enable auto-merge for patch/minor updates
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
