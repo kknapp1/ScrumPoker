@@ -31,6 +31,7 @@ export const WS_EVENTS = {
   REVEAL:       'REVEAL',
   RESET:        'RESET',
   UPDATE_STORY: 'UPDATE_STORY',
+  REQUEST_ROOM_STATE: 'REQUEST_ROOM_STATE',
 
   // Server → Client
   ROOM_STATE:   'ROOM_STATE',

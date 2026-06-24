@@ -52,7 +52,10 @@ export function useWebSocketRoom(roomId, currentUser) {
           setParticipants(
             (room.participants || []).map(p => ({
               name: p.userName,
-              vote: p.hasVoted ? true : null,
+              // value is only present once the room is already revealed
+              // (e.g. reconnecting after reveal); otherwise fall back to
+              // the hidden-value placeholder used everywhere else.
+              vote: p.value !== undefined ? p.value : (p.hasVoted ? true : null),
               isCurrentUser: p.userName === currentUser,
             }))
           )
@@ -117,6 +120,11 @@ export function useWebSocketRoom(roomId, currentUser) {
         setIsConnected(true)
         setConnectionError(null)
         reconnectAttemptRef.current = 0
+        // The server can't push ROOM_STATE from $connect (API Gateway can't
+        // PostToConnection to a connection still inside its own $connect
+        // invocation), so the client requests it explicitly once the
+        // channel is actually open.
+        socket.send(JSON.stringify({ type: WS_EVENTS.REQUEST_ROOM_STATE }))
       }
 
       socket.onmessage = (event) => {

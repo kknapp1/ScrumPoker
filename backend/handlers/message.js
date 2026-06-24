@@ -38,6 +38,9 @@ exports.handler = async (event) => {
       case 'UPDATE_STORY':
         return handleUpdateStory(event, connectionId, roomId, payload.storyName)
 
+      case 'REQUEST_ROOM_STATE':
+        return handleRequestRoomState(event, connectionId, roomId)
+
       default:
         return { statusCode: 400, body: `Unknown message type: ${type}` }
     }
@@ -100,6 +103,39 @@ async function handleReset(event, connectionId, roomId) {
 
   const connections = await getConnectionsByRoom(roomId)
   await broadcastToRoom(event, connections, { type: 'ROUND_RESET' })
+
+  return { statusCode: 200 }
+}
+
+async function handleRequestRoomState(event, connectionId, roomId) {
+  const room = await getRoom(roomId)
+  if (!room) return { statusCode: 404 }
+
+  const [connections, votes] = await Promise.all([
+    getConnectionsByRoom(roomId),
+    getVotesByRoom(roomId),
+  ])
+  const voteMap = Object.fromEntries(votes.map(v => [v.userName, v.value]))
+
+  const apigw = makeClient(event)
+  await sendTo(apigw, connectionId, {
+    type: 'ROOM_STATE',
+    room: {
+      roomId: room.roomId,
+      status: room.status,
+      storyName: room.storyName,
+      deckKey: room.deckKey,
+      isModerator: room.moderatorConnectionId === connectionId,
+      participants: connections.map(c => ({
+        userName: c.userName,
+        hasVoted: voteMap[c.userName] !== undefined,
+        // Only reveal actual values once the room is in 'revealed' state —
+        // matches VOTES_REVEALED's behavior for anyone joining/reconnecting
+        // after the reveal already happened.
+        value: room.status === 'revealed' ? voteMap[c.userName] ?? null : undefined,
+      })),
+    },
+  })
 
   return { statusCode: 200 }
 }

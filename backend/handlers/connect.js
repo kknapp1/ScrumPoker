@@ -9,7 +9,7 @@
  */
 const { getRoom, createRoom, updateRoom, saveConnection,
         getConnectionsByRoom } = require('../lib/db')
-const { broadcastToRoom, makeClient, sendTo } = require('../lib/broadcast')
+const { broadcastToRoom } = require('../lib/broadcast')
 const { MAX_PARTICIPANTS } = require('../lib/constants')
 
 exports.handler = async (event) => {
@@ -54,22 +54,14 @@ exports.handler = async (event) => {
       participantCount: allConnections.length,
     })
 
-    // Send current room state to the new joiner
-    const apigw = makeClient(event)
-    await sendTo(apigw, connectionId, {
-      type: 'ROOM_STATE',
-      room: {
-        roomId: room.roomId,
-        status: room.status,
-        storyName: room.storyName,
-        deckKey: room.deckKey,
-        isModerator: room.moderatorConnectionId === connectionId,
-        participants: allConnections.map(c => ({
-          userName: c.userName,
-          hasVoted: false, // votes are hidden until reveal
-        })),
-      },
-    })
+    // Note: we deliberately do NOT PostToConnection back to connectionId
+    // here. API Gateway's WebSocket Management API cannot send to the
+    // connection that's still inside its own $connect invocation — the
+    // two-way channel isn't established until $connect returns, so any
+    // send attempt fails with a 410 GoneException (and would incorrectly
+    // delete this brand-new connection via sendTo's 410 cleanup). The
+    // client requests its own ROOM_STATE via a REQUEST_ROOM_STATE message
+    // (see message.js) right after the connection's open event fires.
 
     return { statusCode: 200 }
   } catch (err) {
