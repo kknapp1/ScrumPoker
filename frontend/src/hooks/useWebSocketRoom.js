@@ -101,6 +101,11 @@ export function useWebSocketRoom(roomId, currentUser) {
           break
         }
 
+        case WS_EVENTS.DECK_UPDATED: {
+          setDeckKeyState(msg.deckKey || DEFAULT_DECK)
+          break
+        }
+
         case WS_EVENTS.ERROR: {
           setLastError(msg.message || 'Something went wrong')
           break
@@ -193,6 +198,18 @@ export function useWebSocketRoom(roomId, currentUser) {
     send({ type: WS_EVENTS.UPDATE_STORY, storyName: name })
   }, [send])
 
+  const setDeckKey = useCallback((key) => {
+    send({ type: WS_EVENTS.SET_DECK, deckKey: key })
+  }, [send])
+
+  // Transient errors (e.g. "Only the moderator can...") auto-dismiss rather
+  // than lingering until the next one replaces them.
+  useEffect(() => {
+    if (!lastError) return
+    const timer = setTimeout(() => setLastError(null), 4000)
+    return () => clearTimeout(timer)
+  }, [lastError])
+
   // Same average/median computation as useLocalRoom, over the synced
   // participants list rather than a single-entry local array.
   const results = (() => {
@@ -221,6 +238,7 @@ export function useWebSocketRoom(roomId, currentUser) {
     status,
     deck,
     deckKey,
+    setDeckKey,
     storyName,
     setStoryName,
     participants,

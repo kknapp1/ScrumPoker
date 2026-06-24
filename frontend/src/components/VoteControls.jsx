@@ -3,19 +3,26 @@ import { ROOM_STATUS } from '../constants.js'
 import styles from './VoteControls.module.css'
 
 /**
- * VoteControls — Reveal and Reset buttons.
- *
- * Phase 1: both buttons visible to the single local user.
- * Phase 3: will gate Reveal/Reset to the room moderator only,
- *          based on a `isLocalOnly` or `isModerator` flag from RoomContext.
+ * VoteControls — Reveal and Reset buttons, moderator-only (Phase 3).
+ * Non-moderators see a status line instead of dead/disabled buttons.
  */
 export default function VoteControls() {
-  const { status, reveal, reset, participants } = useRoom()
+  const { status, reveal, reset, participants, isModerator } = useRoom()
   const isRevealed = status === ROOM_STATUS.REVEALED
 
   const votedCount = participants.filter(p => p.vote !== null).length
   const totalCount = participants.length
   const allVoted = totalCount > 0 && votedCount === totalCount
+
+  if (!isModerator) {
+    return (
+      <div className={styles.controls}>
+        <p className={styles.moderatorNotice}>
+          Waiting for the moderator to {isRevealed ? 'start a new round' : 'reveal votes'}.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className={styles.controls}>

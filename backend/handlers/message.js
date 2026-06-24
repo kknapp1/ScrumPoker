@@ -7,6 +7,7 @@
 const { getConnection, getConnectionsByRoom, getRoom, updateRoom,
         saveVote, getVotesByRoom, deleteVotesByRoom } = require('../lib/db')
 const { broadcastToRoom, makeClient, sendTo } = require('../lib/broadcast')
+const { VALID_DECK_KEYS } = require('../lib/constants')
 
 exports.handler = async (event) => {
   const connectionId = event.requestContext.connectionId
@@ -37,6 +38,9 @@ exports.handler = async (event) => {
 
       case 'UPDATE_STORY':
         return handleUpdateStory(event, connectionId, roomId, payload.storyName)
+
+      case 'SET_DECK':
+        return handleSetDeck(event, connectionId, roomId, payload.deckKey)
 
       case 'REQUEST_ROOM_STATE':
         return handleRequestRoomState(event, connectionId, roomId)
@@ -70,11 +74,30 @@ async function handleVote(event, connectionId, roomId, userName, value) {
   return { statusCode: 200 }
 }
 
-async function handleReveal(event, connectionId, roomId) {
+// Fetches the room and checks the requester is its moderator, sending an
+// ERROR back to them (and returning isModerator: false) if not. Callers
+// should bail out on isModerator: false without taking the action.
+async function requireModerator(event, connectionId, roomId, actionLabel) {
   const room = await getRoom(roomId)
-  if (!room) return { statusCode: 404 }
+  if (!room) return { room: null, isModerator: false }
 
-  // Phase 3: enforce moderator-only. For now any participant can reveal.
+  if (room.moderatorConnectionId !== connectionId) {
+    const apigw = makeClient(event)
+    await sendTo(apigw, connectionId, {
+      type: 'ERROR',
+      message: `Only the moderator can ${actionLabel}`,
+    })
+    return { room, isModerator: false }
+  }
+
+  return { room, isModerator: true }
+}
+
+async function handleReveal(event, connectionId, roomId) {
+  const { room, isModerator } = await requireModerator(event, connectionId, roomId, 'reveal votes')
+  if (!room) return { statusCode: 404 }
+  if (!isModerator) return { statusCode: 200 }
+
   if (room.status !== 'voting') return { statusCode: 200 }
 
   await updateRoom(roomId, { status: 'revealed' })
@@ -95,7 +118,10 @@ async function handleReveal(event, connectionId, roomId) {
 }
 
 async function handleReset(event, connectionId, roomId) {
-  // Phase 3: enforce moderator-only. For now any participant can reset.
+  const { room, isModerator } = await requireModerator(event, connectionId, roomId, 'reset the round')
+  if (!room) return { statusCode: 404 }
+  if (!isModerator) return { statusCode: 200 }
+
   await Promise.all([
     updateRoom(roomId, { status: 'voting', storyName: '' }),
     deleteVotesByRoom(roomId),
@@ -103,6 +129,28 @@ async function handleReset(event, connectionId, roomId) {
 
   const connections = await getConnectionsByRoom(roomId)
   await broadcastToRoom(event, connections, { type: 'ROUND_RESET' })
+
+  return { statusCode: 200 }
+}
+
+async function handleSetDeck(event, connectionId, roomId, deckKey) {
+  const { room, isModerator } = await requireModerator(event, connectionId, roomId, 'change the deck')
+  if (!room) return { statusCode: 404 }
+  if (!isModerator) return { statusCode: 200 }
+
+  if (!VALID_DECK_KEYS.includes(deckKey)) {
+    const apigw = makeClient(event)
+    await sendTo(apigw, connectionId, { type: 'ERROR', message: 'Invalid deck' })
+    return { statusCode: 200 }
+  }
+
+  await updateRoom(roomId, { deckKey })
+
+  const connections = await getConnectionsByRoom(roomId)
+  await broadcastToRoom(event, connections, {
+    type: 'DECK_UPDATED',
+    deckKey,
+  })
 
   return { statusCode: 200 }
 }

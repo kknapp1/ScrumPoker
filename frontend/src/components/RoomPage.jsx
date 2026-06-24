@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { RoomContext } from '../context/RoomContext.jsx'
 import { useWebSocketRoom } from '../hooks/useWebSocketRoom.js'
+import { CARD_DECKS } from '../constants.js'
 import NameEntryModal from './NameEntryModal.jsx'
 import CardGrid from './CardGrid.jsx'
 import ParticipantList from './ParticipantList.jsx'
@@ -71,6 +72,20 @@ export default function RoomPage() {
                 Estimating: <strong>{room.storyName}</strong>
               </p>
             )}
+            {room.isModerator && (
+              <label className={styles.deckSelectLabel}>
+                Deck:{' '}
+                <select
+                  className={styles.deckSelect}
+                  value={room.deckKey}
+                  onChange={e => room.setDeckKey(e.target.value)}
+                >
+                  {Object.entries(CARD_DECKS).map(([key, { label }]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
+                </select>
+              </label>
+            )}
           </section>
 
           {/* Connection status */}
@@ -82,6 +97,11 @@ export default function RoomPage() {
           {room.connectionError && (
             <div className={styles.errorNotice} role="alert">
               {room.connectionError}
+            </div>
+          )}
+          {room.lastError && (
+            <div className={styles.errorNotice} role="alert">
+              {room.lastError}
             </div>
           )}
 
