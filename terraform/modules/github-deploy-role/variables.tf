@@ -50,6 +50,12 @@ variable "lock_table_name" {
   default     = "scrum-poker-tflock"
 }
 
+variable "app_table_arns" {
+  description = "ARNs (including GSI ARNs) of the app's own DynamoDB tables (connections, rooms, votes) this role manages via Terraform"
+  type        = list(string)
+  default     = []
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

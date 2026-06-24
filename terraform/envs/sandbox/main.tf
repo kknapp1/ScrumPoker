@@ -31,6 +31,12 @@ module "frontend" {
   tags        = local.tags
 }
 
+module "app_tables" {
+  source      = "../../modules/dynamodb-app-tables"
+  environment = local.env
+  tags        = local.tags
+}
+
 module "deploy_role" {
   source             = "../../modules/github-deploy-role"
   role_name          = "scrumpoker-sandbox-github-actions"
@@ -40,7 +46,13 @@ module "deploy_role" {
   bucket_name        = var.bucket_name
   builds_prefix      = var.builds_prefix
   deploy_prefix      = var.deploy_prefix
-  tags               = local.tags
+  app_table_arns = [
+    module.app_tables.connections_table_arn,
+    module.app_tables.connections_table_gsi_arn,
+    module.app_tables.rooms_table_arn,
+    module.app_tables.votes_table_arn,
+  ]
+  tags = local.tags
 }
 
 # ── Outputs consumed by GitHub Actions ────────────────────────
@@ -71,4 +83,16 @@ output "cloudfront_distribution_id" {
 
 output "deploy_role_arn" {
   value = module.deploy_role.role_arn
+}
+
+output "connections_table_name" {
+  value = module.app_tables.connections_table_name
+}
+
+output "rooms_table_name" {
+  value = module.app_tables.rooms_table_name
+}
+
+output "votes_table_name" {
+  value = module.app_tables.votes_table_name
 }
