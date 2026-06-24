@@ -60,6 +60,12 @@ jobs:
           aws s3 cp "build-${{ github.sha }}.zip" \
             "s3://${{ env.SCRUM_POKER_BUCKET }}/builds/${{ github.sha }}.zip"
 
+      # ── Backend deps (bundled into the Lambda zip by Terraform's
+      # archive_file at apply time — must be on disk before Terraform runs) ──
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci --omit=dev
+
       # ── Terraform ────────────────────────────────────────────
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3

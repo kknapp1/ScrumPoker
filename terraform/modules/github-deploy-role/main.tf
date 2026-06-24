@@ -152,6 +152,8 @@ resource "aws_iam_role_policy" "deploy" {
         Sid    = "OwnRoleManagement"
         Effect = "Allow"
         Action = [
+          "iam:CreateRole",
+          "iam:DeleteRole",
           "iam:GetRole",
           "iam:GetRolePolicy",
           "iam:ListRolePolicies",
@@ -160,8 +162,66 @@ resource "aws_iam_role_policy" "deploy" {
           "iam:UpdateAssumeRolePolicy",
           "iam:PutRolePolicy",
           "iam:DeleteRolePolicy",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
         ]
         Resource = "arn:aws:iam::*:role/scrumpoker-*"
+      },
+      {
+        Sid      = "PassLambdaExecRole"
+        Effect   = "Allow"
+        Action   = "iam:PassRole"
+        Resource = "arn:aws:iam::*:role/scrumpoker-*"
+        Condition = {
+          StringEquals = { "iam:PassedToService" = "lambda.amazonaws.com" }
+        }
+      },
+      {
+        # Needed for Terraform to read/manage the AWSLambdaBasicExecutionRole
+        # managed-policy attachment on the Lambda exec role.
+        Sid      = "LambdaExecRoleManagedPolicyRead"
+        Effect   = "Allow"
+        Action   = ["iam:GetPolicy", "iam:GetPolicyVersion"]
+        Resource = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      },
+      {
+        # Lambda has resource-level permissions for these actions, scoped to
+        # the scrumpoker-* naming convention used elsewhere in this file.
+        Sid    = "AppLambdaManagement"
+        Effect = "Allow"
+        Action = [
+          "lambda:CreateFunction",
+          "lambda:DeleteFunction",
+          "lambda:GetFunction",
+          "lambda:GetFunctionConfiguration",
+          "lambda:UpdateFunctionCode",
+          "lambda:UpdateFunctionConfiguration",
+          "lambda:AddPermission",
+          "lambda:RemovePermission",
+          "lambda:GetPolicy",
+          "lambda:ListVersionsByFunction",
+          "lambda:TagResource",
+          "lambda:UntagResource",
+          "lambda:ListTags",
+        ]
+        Resource = "arn:aws:lambda:*:*:function:scrumpoker-*"
+      },
+      {
+        # API Gateway v2 (WebSocket) has no resource-level permissions for
+        # most actions — same situation as CloudFrontManagement above, kept
+        # account-wide per AWS's own documented limitation for this service.
+        Sid    = "AppApiGatewayV2Management"
+        Effect = "Allow"
+        Action = [
+          "apigateway:POST",
+          "apigateway:GET",
+          "apigateway:PUT",
+          "apigateway:PATCH",
+          "apigateway:DELETE",
+          "apigateway:TagResource",
+          "apigateway:UntagResource",
+        ]
+        Resource = "*"
       },
     ]
   })
