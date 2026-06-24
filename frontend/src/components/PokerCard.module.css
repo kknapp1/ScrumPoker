@@ -38,34 +38,11 @@
 }
 
 .card.special .center {
-  font-size: 1.5rem;
-}
-
-.corner {
-  position: absolute;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  line-height: 1;
-}
-
-.card.selected .corner {
-  color: rgba(255, 255, 255, 0.75);
-}
-
-.topLeft {
-  top: 6px;
-  left: 7px;
-}
-
-.bottomRight {
-  bottom: 6px;
-  right: 7px;
-  transform: rotate(180deg);
+  font-size: 2rem;
 }
 
 .center {
-  font-size: var(--font-size-xl);
+  font-size: 1.75rem;
   font-weight: 700;
   color: var(--color-text-primary);
 }

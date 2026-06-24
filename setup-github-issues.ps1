@@ -1,41 +1,28 @@
 # setup-github-issues.ps1
-# Creates all GitHub issues for the ScrumPoker project.
+# Creates all GitHub issues for the ScrumPoker project using the GitHub CLI.
 #
-# Usage:
-#   $env:GITHUB_TOKEN = "ghp_yourTokenHere"
+# Usage (run from repo root):
 #   .\setup-github-issues.ps1
 #
-# Requires a PAT with 'repo' scope.
-# Create one at: https://github.com/settings/tokens
+# Requires: gh CLI, already authenticated (gh auth login)
 
-$repo  = "kknapp1/ScrumPoker"
-$token = $env:GITHUB_TOKEN
-if (-not $token) {
-    Write-Error "Set GITHUB_TOKEN environment variable first."
+$repo = "kknapp1/ScrumPoker"
+
+# Verify gh is available and authenticated
+if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+    Write-Error "GitHub CLI (gh) not found. Install from https://cli.github.com"
     exit 1
 }
 
-$headers = @{
-    Authorization = "Bearer $token"
-    Accept        = "application/vnd.github+json"
-    "X-GitHub-Api-Version" = "2022-11-28"
-}
-
 function New-Issue($title, $body, $labels) {
-    $payload = @{ title = $title; body = $body; labels = $labels } | ConvertTo-Json
-    $resp = Invoke-RestMethod `
-        -Method Post `
-        -Uri "https://api.github.com/repos/$repo/issues" `
-        -Headers $headers `
-        -Body $payload `
-        -ContentType "application/json"
-    Write-Host "  Created #$($resp.number): $title" -ForegroundColor Green
-    Start-Sleep -Milliseconds 300  # avoid rate limiting
+    $labelArgs = $labels | ForEach-Object { "--label", $_ }
+    gh issue create --repo $repo --title $title --body $body @labelArgs | Out-Null
+    Write-Host "  Created: $title" -ForegroundColor Green
 }
 
 # ── Create labels first ──────────────────────────────────────────────────────
 
-$labels = @(
+$labelDefs = @(
     @{ name = "phase-1";  color = "0075ca"; description = "Phase 1: Foundation & Static UI" },
     @{ name = "phase-2";  color = "e4e669"; description = "Phase 2: Real-time Backend" },
     @{ name = "phase-3";  color = "d93f0b"; description = "Phase 3: Room Settings" },
@@ -47,20 +34,13 @@ $labels = @(
 )
 
 Write-Host "Creating labels..." -ForegroundColor Cyan
-foreach ($label in $labels) {
-    try {
-        $payload = $label | ConvertTo-Json
-        Invoke-RestMethod `
-            -Method Post `
-            -Uri "https://api.github.com/repos/$repo/labels" `
-            -Headers $headers `
-            -Body $payload `
-            -ContentType "application/json" | Out-Null
-        Write-Host "  Label: $($label.name)" -ForegroundColor Green
-    } catch {
-        Write-Host "  Label '$($label.name)' already exists or error — skipping." -ForegroundColor Yellow
-    }
-    Start-Sleep -Milliseconds 200
+foreach ($label in $labelDefs) {
+    gh label create $label.name `
+        --repo $repo `
+        --color $label.color `
+        --description $label.description `
+        --force 2>&1 | Out-Null
+    Write-Host "  Label: $($label.name)" -ForegroundColor Green
 }
 
 # ── Phase 1 issues ───────────────────────────────────────────────────────────
