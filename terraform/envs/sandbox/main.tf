@@ -35,26 +35,6 @@ module "frontend" {
   tags        = local.tags
 }
 
-module "app_tables" {
-  source      = "../../modules/dynamodb-app-tables"
-  environment = local.env
-  tags        = local.tags
-}
-
-module "websocket_backend" {
-  source                    = "../../modules/websocket-backend"
-  environment               = local.env
-  aws_region                = var.aws_region
-  connections_table_name    = module.app_tables.connections_table_name
-  connections_table_arn     = module.app_tables.connections_table_arn
-  connections_table_gsi_arn = module.app_tables.connections_table_gsi_arn
-  rooms_table_name          = module.app_tables.rooms_table_name
-  rooms_table_arn           = module.app_tables.rooms_table_arn
-  votes_table_name          = module.app_tables.votes_table_name
-  votes_table_arn           = module.app_tables.votes_table_arn
-  tags                      = local.tags
-}
-
 module "deploy_role" {
   source             = "../../modules/github-deploy-role"
   role_name          = "scrumpoker-sandbox-github-actions"
@@ -71,6 +51,38 @@ module "deploy_role" {
   # existing, forcing Terraform to attempt CreateTable before the permission
   # to do so is granted — the same chicken-and-egg trap documented in
   # CLAUDE.md for data-source reads, but here on resource creation order.
+}
+
+module "app_tables" {
+  source      = "../../modules/dynamodb-app-tables"
+  environment = local.env
+  tags        = local.tags
+
+  # No data dependency on deploy_role, but explicit ordering avoids an IAM
+  # eventual-consistency race: without this, Terraform applies app_tables
+  # and deploy_role's policy update concurrently (no reference between
+  # them), and CreateTable can fire before the new permission has
+  # propagated. depends_on forces the policy update to fully complete first.
+  depends_on = [module.deploy_role]
+}
+
+module "websocket_backend" {
+  source                    = "../../modules/websocket-backend"
+  environment               = local.env
+  aws_region                = var.aws_region
+  connections_table_name    = module.app_tables.connections_table_name
+  connections_table_arn     = module.app_tables.connections_table_arn
+  connections_table_gsi_arn = module.app_tables.connections_table_gsi_arn
+  rooms_table_name          = module.app_tables.rooms_table_name
+  rooms_table_arn           = module.app_tables.rooms_table_arn
+  votes_table_name          = module.app_tables.votes_table_name
+  votes_table_arn           = module.app_tables.votes_table_arn
+  tags                      = local.tags
+
+  # Same reasoning as app_tables above — this module creates an IAM role,
+  # Lambda functions, and an API Gateway API, all needing permissions this
+  # run grants to the deploy role itself.
+  depends_on = [module.deploy_role]
 }
 
 # ── Outputs consumed by GitHub Actions ────────────────────────
