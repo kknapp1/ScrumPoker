@@ -5,7 +5,8 @@
   "description": "Lambda handlers for Scrum Poker WebSocket API",
   "type": "commonjs",
   "scripts": {
-    "test": "node --test handlers/*.test.js"
+    "test": "node --test handlers/*.test.js",
+    "lint": "eslint . --ext js --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.0.0",
@@ -13,6 +14,7 @@
     "@aws-sdk/client-apigatewaymanagementapi": "^3.0.0"
   },
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.0"
+    "@types/aws-lambda": "^8.10.0",
+    "eslint": "^8.57.0"
   }
 }
