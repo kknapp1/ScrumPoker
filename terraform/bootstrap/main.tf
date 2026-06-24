@@ -93,6 +93,12 @@ resource "aws_s3_bucket_versioning" "app" {
   }
 }
 
+# tfsec flags AES256 (AWS-managed keys) as wanting a customer-managed KMS
+# key instead — accepted risk, not a gap: this bucket holds build
+# artifacts and Terraform state, not customer/PII data, and a CMK adds
+# real ongoing cost ($1/mo) and key-rotation operational overhead
+# disproportionate to that data's sensitivity.
+#tfsec:ignore:aws-s3-encryption-customer-key
 resource "aws_s3_bucket_server_side_encryption_configuration" "app" {
   bucket = aws_s3_bucket.app.id
   rule {
@@ -110,6 +116,11 @@ resource "aws_s3_bucket_public_access_block" "app" {
   restrict_public_buckets = true
 }
 
+# tfsec wants an explicit customer-managed KMS key here too — same
+# accepted-risk rationale as the bucket above. DynamoDB encrypts at rest
+# by default (AWS-owned key) even without this block; this table only
+# ever holds Terraform's own lock records, not application data.
+#tfsec:ignore:aws-dynamodb-enable-at-rest-encryption
 resource "aws_dynamodb_table" "tflock" {
   name         = "scrum-poker-tflock"
   billing_mode = "PAY_PER_REQUEST"
