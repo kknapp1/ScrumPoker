@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { RoomContext } from '../context/RoomContext.jsx'
-import { useLocalRoom } from '../hooks/useLocalRoom.js'
+import { useWebSocketRoom } from '../hooks/useWebSocketRoom.js'
 import NameEntryModal from './NameEntryModal.jsx'
 import CardGrid from './CardGrid.jsx'
 import ParticipantList from './ParticipantList.jsx'
@@ -15,7 +15,7 @@ export default function RoomPage() {
   const [copied, setCopied] = useState(false)
   const [storyInput, setStoryInput] = useState('')
 
-  const room = useLocalRoom(roomId, currentUser)
+  const room = useWebSocketRoom(roomId, currentUser)
 
   function handleCopyLink() {
     navigator.clipboard.writeText(window.location.href).then(() => {
@@ -73,11 +73,15 @@ export default function RoomPage() {
             )}
           </section>
 
-          {/* Phase 1 notice */}
-          {room.isLocalOnly && (
-            <div className={styles.localNotice} role="status">
-              <strong>Phase 1 preview</strong> — votes are local to this tab. Real-time
-              collaboration (Phase 2) coming next.
+          {/* Connection status */}
+          {!room.isConnected && !room.connectionError && (
+            <div className={styles.statusNotice} role="status">
+              Connecting…
+            </div>
+          )}
+          {room.connectionError && (
+            <div className={styles.errorNotice} role="alert">
+              {room.connectionError}
             </div>
           )}
 

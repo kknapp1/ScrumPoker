@@ -23,9 +23,10 @@ export const DEFAULT_DECK = 'fibonacci'
 export const MAX_PARTICIPANTS = 50
 
 // WebSocket message types (used in Phase 2 — defined here to keep frontend/backend in sync)
+// Note: there is no JOIN_ROOM message — roomId/userName are query params on
+// the $connect route (see backend/handlers/connect.js), not a client message.
 export const WS_EVENTS = {
   // Client → Server
-  JOIN_ROOM:    'JOIN_ROOM',
   VOTE:         'VOTE',
   REVEAL:       'REVEAL',
   RESET:        'RESET',
@@ -38,8 +39,13 @@ export const WS_EVENTS = {
   VOTE_CAST:    'VOTE_CAST',
   VOTES_REVEALED: 'VOTES_REVEALED',
   ROUND_RESET:  'ROUND_RESET',
+  STORY_UPDATED: 'STORY_UPDATED',
   ERROR:        'ERROR',
 }
+
+// WebSocket endpoint, baked in at build time from the Terraform-created
+// API Gateway URL (see .github/workflows/deploy-sandbox.yml).
+export const WS_ENDPOINT = import.meta.env.VITE_WS_ENDPOINT
 
 // Room states
 export const ROOM_STATUS = {
