@@ -50,7 +50,7 @@ jobs:
       # needs the API Gateway WebSocket URL (an apply-time output) baked in
       # at Vite build time via VITE_WS_ENDPOINT. ──────────────────────────
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: '1.7'
           terraform_wrapper: false
