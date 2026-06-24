@@ -20,6 +20,7 @@ build/
 *.tfstate.backup
 *.tfstate.lock.info
 .terraform.lock.hcl
+tfplan
 terraform/envs/*/terraform.tfvars  # contains secrets — copy from .tfvars.example
 
 # Logs

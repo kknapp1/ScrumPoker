@@ -51,7 +51,7 @@ resource "aws_iam_role_policy" "deploy" {
       {
         Sid      = "BucketLevelAccess"
         Effect   = "Allow"
-        Action   = ["s3:ListBucket", "s3:GetBucketLocation"]
+        Action   = ["s3:ListBucket", "s3:GetBucketLocation", "s3:GetBucketPolicy"]
         Resource = "arn:aws:s3:::${var.bucket_name}"
       },
       {
@@ -79,10 +79,33 @@ resource "aws_iam_role_policy" "deploy" {
         ]
       },
       {
-        Sid      = "TerraformLockTable"
-        Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
+        Sid    = "TerraformLockTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:DescribeTable",
+          "dynamodb:DescribeContinuousBackups",
+          "dynamodb:DescribeTimeToLive",
+          "dynamodb:ListTagsOfResource",
+        ]
         Resource = data.aws_dynamodb_table.tflock.arn
+      },
+      {
+        # ListOpenIDConnectProviders has no resource-level permissions —
+        # needed so this role's own Terraform run can read the shared
+        # org-wide OIDC provider via data "aws_iam_openid_connect_provider".
+        Sid      = "OidcProviderLookup"
+        Effect   = "Allow"
+        Action   = ["iam:ListOpenIDConnectProviders"]
+        Resource = "*"
+      },
+      {
+        Sid      = "OidcProviderRead"
+        Effect   = "Allow"
+        Action   = ["iam:GetOpenIDConnectProvider"]
+        Resource = "arn:aws:iam::*:oidc-provider/token.actions.githubusercontent.com"
       },
       {
         # CloudFront has no resource-level permissions for Create*, so this

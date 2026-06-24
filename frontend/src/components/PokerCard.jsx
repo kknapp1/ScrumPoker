@@ -28,9 +28,7 @@ export default function PokerCard({ value, selected, revealed, onClick }) {
       aria-label={`Vote ${value === '☕' ? 'coffee break' : value}`}
       title={value === '☕' ? 'Need a break' : value === '?' ? 'Uncertain / cannot estimate' : `${value} points`}
     >
-      <span className={styles.corner + ' ' + styles.topLeft}>{value}</span>
       <span className={styles.center}>{value}</span>
-      <span className={styles.corner + ' ' + styles.bottomRight}>{value}</span>
     </button>
   )
 }

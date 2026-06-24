@@ -5,7 +5,7 @@
 export const CARD_DECKS = {
   fibonacci: {
     label: 'Fibonacci',
-    values: ['☕', '?', '0', '0.5', '1', '2', '3', '5', '8', '13', '20', '40', '100'],
+    values: ['☕', '?', '1', '2', '3', '5', '8', '13'],
   },
   tshirt: {
     label: 'T-Shirt Sizes',
