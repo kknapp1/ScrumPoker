@@ -1,22 +1,59 @@
 # ScrumPoker — agent notes
 
 Internal collaborative planning poker tool. React + Vite frontend, Lambda
-WebSocket backend (Node.js, Phase 2 — not yet wired into Terraform), AWS
-infra via Terraform, deployed via GitHub Actions.
+WebSocket backend (Node.js, Phase 2 — deployed via Terraform), AWS infra via
+Terraform, deployed via GitHub Actions.
 
 ## Repo layout
 
 ```
 frontend/        React + Vite SPA (npm install / npm run dev → localhost:3000)
-backend/         Lambda handlers (connect/disconnect/message) — not yet deployed by Terraform
+backend/         Lambda handlers (connect/disconnect/message), deployed via
+                 terraform/modules/websocket-backend (archive_file zip at apply time)
 terraform/
-  bootstrap/     Run ONCE per AWS account — creates the app bucket + lock table
-  modules/       Reusable modules (frontend-hosting = S3 + CloudFront)
+  bootstrap/     Run ONCE per AWS account, MANUALLY — creates the app bucket,
+                 lock table, AND the GitHub Actions deploy role (see below)
+  modules/       Reusable modules (frontend-hosting, dynamodb-app-tables,
+                 websocket-backend, github-deploy-role)
   envs/sandbox/  Per-environment config (only sandbox is active; production is a placeholder)
 .github/workflows/
   deploy-sandbox.yml  Active CI/CD (push to main)
   deploy-prod.yml     Placeholder, manually gated, not wired to any terraform/envs/production yet
 ```
+
+## IAM architecture: deploy role lives in bootstrap, not envs/<env>
+
+The GitHub Actions deploy role (`modules/github-deploy-role`) is created and
+managed **only** by `terraform/bootstrap`, run manually with admin
+credentials — never by `envs/<env>`, which is what CI actually runs.
+
+**Why**: a Terraform run can't safely grant itself a permission it needs in
+the same plan/apply — granting a permission and immediately depending on it
+either forces a circular resource-creation order (if the grant references
+the new resource's ARN) or races IAM's eventual consistency (if it doesn't).
+Both failure modes were hit repeatedly while building out Phase 2's
+DynamoDB/Lambda/API Gateway resources. The fix is structural: the role CI
+assumes is never the role CI's own Terraform run modifies.
+
+**Practical implications**:
+- If `envs/<env>` ever needs a new AWS permission (new resource type, new
+  action), add it to `modules/github-deploy-role`'s policy, then **run
+  `terraform/bootstrap` manually** (`sandbox-admin` SSO or equivalent) to
+  apply it — *before* pushing the `envs/<env>` change that needs it. CI
+  cannot grant its own role permissions.
+- `envs/<env>` only ever manages app resources (frontend hosting, DynamoDB
+  app tables, Lambda, API Gateway) — it has no `module "deploy_role"` block
+  and no `aws_iam_role`/`aws_iam_role_policy` resources of its own.
+- The role's ARN is configured as the `AWS_DEPLOY_ROLE_ARN` GitHub secret
+  manually (not wired through Terraform outputs into CI), for the same
+  reason: keep the role's lifecycle fully outside what CI can touch.
+- Resources `envs/<env>` creates that themselves need IAM permissions (e.g.
+  the Lambda exec role `modules/websocket-backend` creates and attaches
+  policies to) are independent from each other in Terraform's graph by
+  default — no automatic ordering. This hasn't needed a `depends_on` fix
+  since the deploy role moved to bootstrap (nothing in `envs/<env>` grants
+  permissions to itself anymore), but watch for it if a future module needs
+  another module's resources to exist before it can safely proceed.
 
 ## AWS account / bucket model (current as of 2026-06-18)
 
@@ -57,10 +94,17 @@ account. It's exposed as both `env.SCRUM_POKER_BUCKET` (used directly in s3
 paths and `-backend-config`) and `TF_VAR_bucket_name` (picked up automatically
 by Terraform).
 
-Flow: build frontend → zip `dist/` → upload to `builds/<sha>.zip` → terraform
-apply → download that same zip from `builds/` → extract → sync to `deploy/`
-→ invalidate CloudFront. This build/release split is intentional (the
-artifact that gets deployed is the exact one that was built, not a re-build).
+Flow: install backend deps (`npm ci` — needed on disk for Terraform's
+`archive_file` to zip into the Lambda package) → terraform apply (creates/
+updates DynamoDB tables, Lambda, API Gateway; outputs `websocket_endpoint`)
+→ **then** build frontend with `VITE_WS_ENDPOINT` from that output → zip
+`dist/` → upload to `builds/<sha>.zip` → download that same zip from
+`builds/` → extract → sync to `deploy/` → invalidate CloudFront. Terraform
+apply intentionally happens *before* the frontend build (not after, as in
+Phase 1) since Vite bakes `VITE_*` env vars in at build time and the
+WebSocket URL doesn't exist until Terraform creates it. This build/release
+split is intentional (the artifact that gets deployed is the exact one that
+was built, not a re-build).
 
 ## AWS SSO profiles (local dev, ~/.aws/config)
 
@@ -85,11 +129,18 @@ artifact that gets deployed is the exact one that was built, not a re-build).
 ## Known gaps / not-yet-done
 
 - `deploy-prod.yml` and `terraform/envs/production` don't exist yet — sandbox
-  is the only live environment.
-- Backend Lambda handlers (`backend/`) have no Terraform resources yet (no
-  Lambda, API Gateway, or DynamoDB app table in `modules/` or `envs/`) —
-  only `connect.js`/`disconnect.js`/`message.js` exist as code.
-- The GitHub Actions deploy role and its IAM policy were created manually
-  in the AWS console (not in Terraform) — check whether a
-  `terraform/modules/github-deploy-role` (or similar) exists before assuming
-  it's still manual; if it's been imported, prefer that over recreating it.
+  is the only live environment. When standing up a new account/environment,
+  `terraform/bootstrap` must be run manually there first (creates the bucket,
+  lock table, and that account's deploy role) before any CI push can deploy
+  `envs/<env>`.
+- Phase 3 (moderator-only reveal/reset, room settings) isn't implemented —
+  `backend/handlers/message.js` has comments marking where that enforcement
+  goes; currently any participant can reveal/reset.
+- 50-participant limit: backend hard-rejects the 51st `$connect` with a 403;
+  the frontend can't distinguish that from a generic connect failure (the
+  browser WebSocket API doesn't expose HTTP status on a rejected handshake),
+  so it shows a hedged "may be full or temporarily unavailable" message
+  rather than a precise one. A more precise signal would require `connect.js`
+  to accept the handshake and send an explicit error message before closing,
+  rather than rejecting at `$connect` — not done, to avoid touching otherwise-
+  stable handler code without a clear need.

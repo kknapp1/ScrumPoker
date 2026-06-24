@@ -20,9 +20,3 @@ variable "deploy_prefix" {
   type        = string
   default     = "deploy"
 }
-
-variable "repo" {
-  description = "GitHub repo in \"org/name\" form, used for the GitHub Actions deploy role's trust policy"
-  type        = string
-  default     = "kknapp1/ScrumPoker"
-}
