@@ -93,6 +93,26 @@ resource "aws_iam_role_policy" "deploy" {
         Resource = data.aws_dynamodb_table.tflock.arn
       },
       {
+        # The app's own DynamoDB tables (connections/rooms/votes), distinct
+        # from TerraformLockTable above. CreateTable/DeleteTable are needed
+        # since this role provisions these tables itself via Terraform.
+        Sid    = "AppDynamoDbTables"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:CreateTable",
+          "dynamodb:DeleteTable",
+          "dynamodb:DescribeTable",
+          "dynamodb:DescribeContinuousBackups",
+          "dynamodb:DescribeTimeToLive",
+          "dynamodb:UpdateTimeToLive",
+          "dynamodb:UpdateTable",
+          "dynamodb:ListTagsOfResource",
+          "dynamodb:TagResource",
+          "dynamodb:UntagResource",
+        ]
+        Resource = length(var.app_table_arns) > 0 ? var.app_table_arns : ["arn:aws:dynamodb:*:*:table/scrumpoker-*"]
+      },
+      {
         # ListOpenIDConnectProviders has no resource-level permissions —
         # needed so this role's own Terraform run can read the shared
         # org-wide OIDC provider via data "aws_iam_openid_connect_provider".
