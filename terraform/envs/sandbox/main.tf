@@ -5,6 +5,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
   }
   # backend configured in backend.tf
 }
@@ -35,6 +39,20 @@ module "app_tables" {
   source      = "../../modules/dynamodb-app-tables"
   environment = local.env
   tags        = local.tags
+}
+
+module "websocket_backend" {
+  source                    = "../../modules/websocket-backend"
+  environment               = local.env
+  aws_region                = var.aws_region
+  connections_table_name    = module.app_tables.connections_table_name
+  connections_table_arn     = module.app_tables.connections_table_arn
+  connections_table_gsi_arn = module.app_tables.connections_table_gsi_arn
+  rooms_table_name          = module.app_tables.rooms_table_name
+  rooms_table_arn           = module.app_tables.rooms_table_arn
+  votes_table_name          = module.app_tables.votes_table_name
+  votes_table_arn           = module.app_tables.votes_table_arn
+  tags                      = local.tags
 }
 
 module "deploy_role" {
@@ -95,4 +113,8 @@ output "rooms_table_name" {
 
 output "votes_table_name" {
   value = module.app_tables.votes_table_name
+}
+
+output "websocket_endpoint" {
+  value = module.websocket_backend.websocket_endpoint
 }
