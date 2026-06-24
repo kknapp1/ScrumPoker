@@ -87,6 +87,22 @@ resource "aws_iam_role_policy" "lambda_app_access" {
 }
 
 # ── Lambda functions (share one zip, different handler entry points) ──
+#
+# timeout=29 is API Gateway's own hard cap on WebSocket integration timeout
+# (not a Lambda limit) — set to the max useful value, not an arbitrary
+# round number. Needed because connect.js's PARTICIPANT_JOINED broadcast
+# fans out to every existing connection on each join; as a room approaches
+# the 50-participant limit, that fan-out plus concurrent in-flight joins
+# can push a single $connect invocation's duration into multiple seconds
+# (observed during load testing: roughly linear growth with room size,
+# occasionally exceeding the original 10s timeout around 40-45
+# participants). memory_size=256 (up from 128) buys some headroom via
+# Lambda's CPU-scales-with-memory behavior. This is a mitigation, not a
+# fix — the underlying fan-out design doesn't batch or decouple broadcast
+# delivery from the $connect critical path, so it remains a real
+# scalability limitation worth addressing if Phase 3 work touches this
+# area (e.g. fire-and-forget broadcasts, or moving notification delivery
+# off the connect path entirely).
 
 resource "aws_lambda_function" "connect" {
   function_name    = "scrumpoker-${var.environment}-connect"
@@ -96,8 +112,8 @@ resource "aws_lambda_function" "connect" {
   architectures    = ["arm64"]
   filename         = data.archive_file.backend.output_path
   source_code_hash = data.archive_file.backend.output_base64sha256
-  timeout          = 10
-  memory_size      = 128
+  timeout          = 29
+  memory_size      = 256
 
   environment {
     variables = {
@@ -118,8 +134,8 @@ resource "aws_lambda_function" "disconnect" {
   architectures    = ["arm64"]
   filename         = data.archive_file.backend.output_path
   source_code_hash = data.archive_file.backend.output_base64sha256
-  timeout          = 10
-  memory_size      = 128
+  timeout          = 29
+  memory_size      = 256
 
   environment {
     variables = {
@@ -140,8 +156,8 @@ resource "aws_lambda_function" "message" {
   architectures    = ["arm64"]
   filename         = data.archive_file.backend.output_path
   source_code_hash = data.archive_file.backend.output_base64sha256
-  timeout          = 10
-  memory_size      = 128
+  timeout          = 29
+  memory_size      = 256
 
   environment {
     variables = {

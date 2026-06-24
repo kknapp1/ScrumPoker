@@ -137,10 +137,32 @@ was built, not a re-build).
   `backend/handlers/message.js` has comments marking where that enforcement
   goes; currently any participant can reveal/reset.
 - 50-participant limit: backend hard-rejects the 51st `$connect` with a 403;
-  the frontend can't distinguish that from a generic connect failure (the
-  browser WebSocket API doesn't expose HTTP status on a rejected handshake),
-  so it shows a hedged "may be full or temporarily unavailable" message
-  rather than a precise one. A more precise signal would require `connect.js`
-  to accept the handshake and send an explicit error message before closing,
-  rather than rejecting at `$connect` — not done, to avoid touching otherwise-
+  confirmed via load test (50 real connections + a 51st) that this works and
+  doesn't disturb the other 50. The frontend can't distinguish a 403 from a
+  generic connect failure (browsers don't expose HTTP status on a rejected
+  WS handshake — confirmed empirically too: Node's `ws` library surfaces it
+  as a `1006` close with no reason, and only logs the real 403 via a
+  diagnostic-only error event not available to browser JS), so it shows a
+  hedged "may be full or temporarily unavailable" message rather than a
+  precise one. A more precise signal would require `connect.js` to accept
+  the handshake and send an explicit error message before closing, rather
+  than rejecting at `$connect` — not done, to avoid touching otherwise-
   stable handler code without a clear need.
+- **Broadcast fan-out doesn't scale well as a room fills up.** `connect.js`
+  broadcasts `PARTICIPANT_JOINED` to every existing connection on each join
+  (`backend/lib/broadcast.js`'s `broadcastToRoom`, one `PostToConnection`
+  call per existing participant, awaited within the `$connect` invocation).
+  Load-tested at 50 concurrent joins: per-invocation duration grew roughly
+  with room size (low seconds at ~10 participants, briefly hit the Lambda's
+  original 10s timeout around 40-45) — load on the execute-api Management
+  API compounds across overlapping in-flight `$connect` invocations as
+  joins happen close together in time. Mitigated for now by raising
+  `websocket-backend`'s Lambda `timeout` to 29s (API Gateway's own
+  WebSocket integration timeout cap, not an arbitrary value) and
+  `memory_size` to 256 for more throughput — verified all 50 connect
+  successfully under that headroom. This is a mitigation, not a fix: the
+  fan-out itself isn't batched or decoupled from the `$connect` critical
+  path. Worth addressing properly (e.g. fire-and-forget broadcasts, or
+  moving notification delivery off the connect path) if Phase 3 work
+  touches this area or if real usage approaches the 50-participant ceiling
+  with bursty joins.
