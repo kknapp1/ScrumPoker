@@ -28,6 +28,10 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
+      - name: Unit tests
+        working-directory: frontend
+        run: npm test
+
       - name: Build
         working-directory: frontend
         run: npm run build
@@ -54,6 +58,10 @@ jobs:
       - name: Lint
         working-directory: backend
         run: npm run lint
+
+      - name: Unit tests
+        working-directory: backend
+        run: npm test
 
   terraform:
     name: Terraform fmt + validate

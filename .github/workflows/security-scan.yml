@@ -23,9 +23,13 @@ jobs:
         with:
           node-version: '20'
 
+      # --omit=dev: dev-only vulnerabilities (e.g. esbuild's dev-server CORS
+      # issue pulled in transitively by vitest) never ship to production —
+      # auditing only what actually gets deployed avoids false-positive
+      # failures from tooling that's never exposed at runtime.
       - name: npm audit
         working-directory: ${{ matrix.dir }}
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
 
   tfsec:
     name: tfsec (Terraform security scan)

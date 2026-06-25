@@ -18,4 +18,10 @@ module.exports = {
     'react/react-in-jsx-scope': 'off',
     'react-refresh/only-export-components': 'warn',
   },
+  overrides: [
+    {
+      files: ['**/*.test.jsx', '**/*.test.js'],
+      globals: { describe: true, it: true, test: true, expect: true, vi: true, beforeEach: true, afterEach: true },
+    },
+  ],
 }
