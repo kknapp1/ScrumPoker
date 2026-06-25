@@ -31,6 +31,8 @@ jobs:
       # ── Checkout ─────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need full tag history for the version footer below
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -96,12 +98,23 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      # Latest tag reachable from this commit — i.e. the latest release as
+      # of this build. Not necessarily a release for *this exact* commit:
+      # release.yml (semantic-release) and this workflow both trigger
+      # independently on push to main, so a brand-new tag for this very
+      # commit may not exist yet by the time this step runs. Falls back to
+      # "untagged" (no version footer link) if no tags exist at all.
+      - name: Determine app version
+        id: app_version
+        run: echo "version=$(git describe --tags --abbrev=0 2>/dev/null || echo untagged)" >> "$GITHUB_OUTPUT"
+
       - name: Build frontend
         working-directory: frontend
         run: npm run build
         env:
           VITE_ENV: sandbox
           VITE_WS_ENDPOINT: ${{ steps.tf_outputs.outputs.ws_endpoint }}
+          VITE_APP_VERSION: ${{ steps.app_version.outputs.version }}
           # Optional per-environment branding (see frontend/src/themes/) —
           # unset vars.SCRUM_POKER_THEME falls back to the default theme.
           VITE_THEME: ${{ vars.SCRUM_POKER_THEME }}
