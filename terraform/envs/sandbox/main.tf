@@ -19,12 +19,12 @@ provider "aws" {
 
 locals {
   env = "sandbox"
-  tags = {
+  tags = merge({
     Project     = "scrum-poker"
     Environment = local.env
     ManagedBy   = "terraform"
     Owner       = "Kenny Knapp"
-  }
+  }, var.application_tag)
 }
 
 module "frontend" {

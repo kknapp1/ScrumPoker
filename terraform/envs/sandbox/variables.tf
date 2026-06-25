@@ -20,3 +20,9 @@ variable "deploy_prefix" {
   type        = string
   default     = "deploy"
 }
+
+variable "application_tag" {
+  description = "The scrum-poker AppRegistry Application's application_tag output from terraform/bootstrap (for this account) — merged into local.tags so every resource here associates with that Application. Defaults to {} so this still works for an account where bootstrap hasn't been re-applied with the Application yet."
+  type        = map(string)
+  default     = {}
+}

@@ -63,11 +63,27 @@ provider "aws" {
 }
 
 locals {
-  tags = {
+  base_tags = {
     Project   = "scrum-poker"
     ManagedBy = "terraform"
     Owner     = "Kenny Knapp"
   }
+  # Merging in the AppRegistry application_tag causes every resource that
+  # uses local.tags to auto-associate with the "scrum-poker" Application
+  # (AWS's myApplications/Cost Explorer grouping) — no separate
+  # per-resource association needed for the resource types this app uses.
+  tags = merge(local.base_tags, aws_servicecatalogappregistry_application.app.application_tag)
+}
+
+# Groups every resource tagged with the application_tag below into a
+# single "Application" for unified cost/usage tracking in the AWS console
+# (myApplications) and Cost Explorer — distinct from (and complementary
+# to) the plain Project=scrum-poker tag, which is just a filterable tag,
+# not a first-class grouping construct with its own dashboard.
+resource "aws_servicecatalogappregistry_application" "app" {
+  name        = "scrum-poker"
+  description = "Scrum Poker — internal collaborative planning poker tool"
+  tags        = local.base_tags
 }
 
 resource "random_id" "suffix" {
@@ -148,6 +164,11 @@ module "deploy_role" {
 output "bucket_name" {
   value       = aws_s3_bucket.app.id
   description = "Use as backend bucket (state/) and as bucket_name var (builds/, deploy/) for this account's envs/<env>"
+}
+
+output "application_tag" {
+  value       = aws_servicecatalogappregistry_application.app.application_tag
+  description = "Merge into envs/<env>'s local.tags (e.g. via -var=\"application_tag={...}\") so its resources also associate with the scrum-poker AppRegistry Application"
 }
 
 output "deploy_role_arn" {

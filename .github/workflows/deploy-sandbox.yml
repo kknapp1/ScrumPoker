@@ -22,6 +22,10 @@ jobs:
       # Value is the `bucket_name` output from terraform/bootstrap for this AWS account.
       SCRUM_POKER_BUCKET: ${{ vars.SCRUM_POKER_BUCKET }}
       TF_VAR_bucket_name: ${{ vars.SCRUM_POKER_BUCKET }}
+      # Value is the `application_tag` output from terraform/bootstrap (a JSON
+      # object, e.g. {"awsApplication":"arn:..."}) for this account — associates
+      # every resource here with the scrum-poker AppRegistry Application.
+      TF_VAR_application_tag: ${{ vars.SCRUM_POKER_APPLICATION_TAG }}
 
     steps:
       # ── Checkout ─────────────────────────────────────────────
