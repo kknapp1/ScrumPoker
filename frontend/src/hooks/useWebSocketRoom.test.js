@@ -111,7 +111,27 @@ describe('useWebSocketRoom', () => {
     expect(result.current.participants.find(p => p.name === 'Bob').vote).toBe('5')
   })
 
-  test('non-numeric deck: VOTES_REVEALED computes low/high outliers by ordinal rank, not average/median', () => {
+  test('VOTES_REVEALED computes low/high outliers by ordinal rank for every deck, including numeric-looking ones', () => {
+    const { result } = renderHook(() => useWebSocketRoom('123', 'Alice'))
+    const socket = latestSocket()
+    connectAndHydrate(socket, {
+      deckKey: 'fibonacci',
+      participants: [
+        { userName: 'Alice', hasVoted: false },
+        { userName: 'Bob', hasVoted: false },
+        { userName: 'Carl', hasVoted: false },
+      ],
+    })
+
+    act(() => socket.triggerMessage({ type: 'VOTES_REVEALED', votes: { Alice: '3', Bob: '13', Carl: '13' } }))
+
+    expect(result.current.results.average).toBeUndefined()
+    expect(result.current.results.median).toBeUndefined()
+    expect(result.current.results.low).toEqual({ value: '3', names: ['Alice'] })
+    expect(result.current.results.high).toEqual({ value: '13', names: ['Bob', 'Carl'] })
+  })
+
+  test('VOTES_REVEALED computes low/high outliers for a non-numeric deck the same way', () => {
     const { result } = renderHook(() => useWebSocketRoom('123', 'Alice'))
     const socket = latestSocket()
     connectAndHydrate(socket, {
@@ -125,8 +145,6 @@ describe('useWebSocketRoom', () => {
 
     act(() => socket.triggerMessage({ type: 'VOTES_REVEALED', votes: { Alice: 'S', Bob: 'XL', Carl: 'XL' } }))
 
-    expect(result.current.results.average).toBeNull()
-    expect(result.current.results.median).toBeNull()
     expect(result.current.results.low).toEqual({ value: 'S', names: ['Alice'] })
     expect(result.current.results.high).toEqual({ value: 'XL', names: ['Bob', 'Carl'] })
   })
