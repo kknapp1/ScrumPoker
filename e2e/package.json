@@ -1,0 +1,15 @@
+{
+  "name": "scrum-poker-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Post-deployment functional tests — run automatically against a real deployed sandbox stack after CI deploys it. Kept isolated from frontend/backend's own dependency trees since this tooling is never shipped.",
+  "type": "commonjs",
+  "scripts": {
+    "test:api": "node --test api.test.js",
+    "test:ui": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "ws": "^8.18.0"
+  }
+}

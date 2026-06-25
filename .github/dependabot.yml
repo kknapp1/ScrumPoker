@@ -16,6 +16,14 @@ updates:
       - "dependencies"
       - "backend"
 
+  - package-ecosystem: "npm"
+    directory: "/e2e"
+    schedule:
+      interval: "daily"
+    labels:
+      - "dependencies"
+      - "tooling"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

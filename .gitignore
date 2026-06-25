@@ -23,6 +23,11 @@ build/
 tfplan
 terraform/envs/*/terraform.tfvars  # contains secrets — copy from .tfvars.example
 
+# Playwright (e2e/)
+test-results/
+playwright-report/
+blob-report/
+
 # Logs
 npm-debug.log*
 yarn-debug.log*

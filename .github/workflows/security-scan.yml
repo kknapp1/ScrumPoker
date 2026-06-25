@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dir: [frontend, backend]
+        dir: [frontend, backend, e2e]
     steps:
       - uses: actions/checkout@v4
 
