@@ -54,9 +54,16 @@ Browser                API Gateway WS              Lambda              DynamoDB
 ## Theming
 
 All colors, fonts, and spacing are defined as CSS custom properties in
-`frontend/src/themes/default.css`. To apply a corporate theme, create a
-new file (e.g. `themes/acme-corp.css`) and change the import in `src/main.jsx`.
-No component code needs to change.
+`frontend/src/themes/default.css`. `frontend/src/main.jsx` imports the bare
+specifier `'theme-active'`, which `vite.config.js` aliases at build time to
+`src/themes/<VITE_THEME>.css` (defaults to `default` if unset) — theme
+selection is build-time config, not a runtime toggle, and no main.jsx edit
+is needed to switch themes. To apply a corporate theme, create a new file
+(e.g. `themes/acme-corp.css`), edit the variable values, and build with
+`VITE_THEME=acme-corp`. No component code needs to change — components
+only ever reference the CSS variables, never a literal color/font value.
+See the README's Theming section for how this is wired into sandbox
+deploys via the `SCRUM_POKER_THEME` GitHub Environment variable.
 
 ## Future: Google Analytics
 
