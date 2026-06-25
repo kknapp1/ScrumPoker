@@ -142,14 +142,6 @@
   color: #92400e;
 }
 
-.errorNotice {
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--font-size-sm);
-  color: #991b1b;
-}
 
 /* ── Responsive ────────────────────────────────── */
 @media (max-width: 600px) {
