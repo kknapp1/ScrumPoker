@@ -11,6 +11,13 @@ jobs:
   commitlint:
     name: Commit message lint
     runs-on: ubuntu-latest
+    # Dependabot's auto-generated commit messages ("Bump x from y to z")
+    # don't follow Conventional Commits and never will — that's not a
+    # signal of anything wrong with the dependency bump itself, so don't
+    # block/fail Dependabot PRs on it. Real regressions from the bump
+    # (lint/test/build failures) still fail via the other jobs below,
+    # which run unconditionally for every PR including Dependabot's.
+    if: github.actor != 'dependabot[bot]'
     steps:
       - uses: actions/checkout@v4
         with:
