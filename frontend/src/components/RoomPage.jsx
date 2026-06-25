@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { RoomContext } from '../context/RoomContext.jsx'
 import { useWebSocketRoom } from '../hooks/useWebSocketRoom.js'
 import { CARD_DECKS } from '../constants.js'
@@ -17,6 +18,19 @@ export default function RoomPage() {
   const [storyInput, setStoryInput] = useState('')
 
   const room = useWebSocketRoom(roomId, currentUser)
+
+  // Transient moderator-rejection/server errors — already auto-clears in
+  // the hook after 4s, the toast's own dismiss timer just needs to be in
+  // the same ballpark so it doesn't outlive the state that produced it.
+  useEffect(() => {
+    if (room.lastError) toast.error(room.lastError, { duration: 4000 })
+  }, [room.lastError])
+
+  // Connect-time failure (e.g. room full) — longer duration since this
+  // represents an ongoing problem (never connected), not a one-off event.
+  useEffect(() => {
+    if (room.connectionError) toast.error(room.connectionError, { duration: 8000 })
+  }, [room.connectionError])
 
   function handleCopyLink() {
     navigator.clipboard.writeText(window.location.href).then(() => {
@@ -88,20 +102,12 @@ export default function RoomPage() {
             )}
           </section>
 
-          {/* Connection status */}
+          {/* Connection status — persistent state, stays inline. Transient
+              errors (lastError) and connect-time failures (connectionError)
+              surface as toasts instead (see the effects above). */}
           {!room.isConnected && !room.connectionError && (
             <div className={styles.statusNotice} role="status">
               Connecting…
-            </div>
-          )}
-          {room.connectionError && (
-            <div className={styles.errorNotice} role="alert">
-              {room.connectionError}
-            </div>
-          )}
-          {room.lastError && (
-            <div className={styles.errorNotice} role="alert">
-              {room.lastError}
             </div>
           )}
 
