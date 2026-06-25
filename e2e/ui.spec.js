@@ -77,3 +77,35 @@ test('recovers from a dropped connection without a manual reload', async ({ page
   // Room is usable again — voting cards still present, no full page reload needed.
   await expect(page.getByRole('button', { name: 'Vote 5' })).toBeVisible()
 })
+
+// Regression test for #15: lobby, name entry modal, room page, and card
+// grid must stay usable down to 320px with no horizontal overflow. Checks
+// document.body.scrollWidth at each step rather than just eyeballing
+// screenshots, since a single fixed-width element anywhere in the tree
+// (e.g. a hardcoded px width that doesn't shrink) would silently
+// reintroduce a scrollbar without breaking any other assertion.
+test('lobby, name entry, and room page fit within a 320px viewport', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 320, height: 700 } })
+  const page = await context.newPage()
+
+  async function expectNoHorizontalOverflow() {
+    const overflowing = await page.evaluate(() => document.body.scrollWidth > window.innerWidth)
+    expect(overflowing).toBe(false)
+  }
+
+  await page.goto('/')
+  await expectNoHorizontalOverflow()
+
+  await page.getByRole('button', { name: 'Create Room' }).click()
+  await expectNoHorizontalOverflow() // name entry modal
+
+  await enterName(page, 'Alice Bartholomew-Whitfield')
+  await expect(page.getByText('Alice Bartholomew-Whitfield (you)')).toBeVisible({ timeout: 10000 })
+  await expectNoHorizontalOverflow() // room page, voting state, card grid
+
+  await page.getByRole('button', { name: 'Vote 13' }).click()
+  await page.getByRole('button', { name: /reveal cards/i }).click()
+  await expectNoHorizontalOverflow() // room page, revealed state
+
+  await context.close()
+})
