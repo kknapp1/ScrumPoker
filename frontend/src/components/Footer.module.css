@@ -1,0 +1,15 @@
+.footer {
+  text-align: center;
+  padding: var(--space-3) var(--space-4);
+}
+
+.versionLink {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.versionLink:hover {
+  color: var(--color-text-secondary);
+  text-decoration: underline;
+}

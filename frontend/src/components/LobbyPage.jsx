@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { generateRoomId } from '../hooks/useLocalRoom.js'
+import Footer from './Footer.jsx'
 import styles from './LobbyPage.module.css'
 
 export default function LobbyPage() {
@@ -78,6 +79,8 @@ export default function LobbyPage() {
       <footer className={styles.footer}>
         <p>An internal tool for sprint planning — no ads, no accounts required.</p>
       </footer>
+
+      <Footer />
     </div>
   )
 }

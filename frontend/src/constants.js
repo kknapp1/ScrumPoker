@@ -50,6 +50,13 @@ export const WS_EVENTS = {
 // API Gateway URL (see .github/workflows/deploy-sandbox.yml).
 export const WS_ENDPOINT = import.meta.env.VITE_WS_ENDPOINT
 
+// App version, baked in at build time from the latest git tag reachable
+// from the commit being built (see .github/workflows/deploy-sandbox.yml) —
+// not frontend/package.json's version, which semantic-release doesn't
+// write to (see .releaserc.json's plugin list). Unset in local dev.
+export const APP_VERSION = import.meta.env.VITE_APP_VERSION
+export const GITHUB_REPO_URL = 'https://github.com/kknapp1/ScrumPoker'
+
 // Room states
 export const ROOM_STATUS = {
   VOTING:   'voting',

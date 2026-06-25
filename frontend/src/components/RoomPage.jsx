@@ -9,6 +9,7 @@ import CardGrid from './CardGrid.jsx'
 import ParticipantList from './ParticipantList.jsx'
 import VoteControls from './VoteControls.jsx'
 import ResultsDisplay from './ResultsDisplay.jsx'
+import Footer from './Footer.jsx'
 import styles from './RoomPage.module.css'
 
 export default function RoomPage() {
@@ -124,6 +125,8 @@ export default function RoomPage() {
           <ParticipantList />
 
         </main>
+
+        <Footer />
       </div>
     </RoomContext.Provider>
   )
