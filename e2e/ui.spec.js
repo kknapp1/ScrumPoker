@@ -135,3 +135,31 @@ test('a selected card shows selected styling even while hovered, not stuck hover
   const translateY = await card.evaluate(el => new DOMMatrix(getComputedStyle(el).transform).m42)
   expect(translateY).toBeCloseTo(-10, 0)
 })
+
+// Regression test for #73: only the moderator can set the story name.
+test('only the moderator can set the story name; non-moderators see it read-only', async ({ browser }) => {
+  const aliceContext = await browser.newContext()
+  const alice = await aliceContext.newPage()
+
+  await alice.goto('/')
+  await alice.getByRole('button', { name: 'Create Room' }).click()
+  await enterName(alice, 'Alice')
+  await expect(alice.getByText('Alice (you)')).toBeVisible({ timeout: 10000 })
+  const roomUrl = alice.url()
+
+  const bobContext = await browser.newContext()
+  const bob = await bobContext.newPage()
+  await bob.goto(roomUrl)
+  await enterName(bob, 'Bob')
+  await expect(bob.getByText('Bob (you)')).toBeVisible({ timeout: 10000 })
+
+  await expect(alice.getByLabel('Story name')).toBeVisible()
+  await expect(bob.getByLabel('Story name')).toHaveCount(0)
+
+  await alice.getByLabel('Story name').fill('Login page redesign')
+  await alice.getByRole('button', { name: 'Set', exact: true }).click()
+  await expect(bob.getByText('Login page redesign')).toBeVisible({ timeout: 10000 })
+
+  await aliceContext.close()
+  await bobContext.close()
+})

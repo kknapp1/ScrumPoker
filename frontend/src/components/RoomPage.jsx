@@ -66,22 +66,26 @@ export default function RoomPage() {
 
         <main className={styles.main}>
 
-          {/* Story name input */}
+          {/* Story name input — moderator-only, same as the deck selector
+              below. Non-moderators still see "Estimating: X" if a story
+              is set; they just can't change it. */}
           <section className={styles.storySection}>
-            <form onSubmit={handleStorySubmit} className={styles.storyForm}>
-              <input
-                type="text"
-                className={styles.storyInput}
-                placeholder="Story / ticket name (optional)"
-                value={storyInput}
-                onChange={e => setStoryInput(e.target.value)}
-                maxLength={120}
-                aria-label="Story name"
-              />
-              {storyInput.trim() && storyInput.trim() !== room.storyName && (
-                <button type="submit" className={styles.storyButton}>Set</button>
-              )}
-            </form>
+            {room.isModerator && (
+              <form onSubmit={handleStorySubmit} className={styles.storyForm}>
+                <input
+                  type="text"
+                  className={styles.storyInput}
+                  placeholder="Story / ticket name (optional)"
+                  value={storyInput}
+                  onChange={e => setStoryInput(e.target.value)}
+                  maxLength={120}
+                  aria-label="Story name"
+                />
+                {storyInput.trim() && storyInput.trim() !== room.storyName && (
+                  <button type="submit" className={styles.storyButton}>Set</button>
+                )}
+              </form>
+            )}
             {room.storyName && (
               <p className={styles.activeStory}>
                 Estimating: <strong>{room.storyName}</strong>

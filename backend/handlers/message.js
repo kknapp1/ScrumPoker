@@ -189,6 +189,10 @@ async function handleRequestRoomState(event, connectionId, roomId) {
 }
 
 async function handleUpdateStory(event, connectionId, roomId, storyName) {
+  const { room, isModerator } = await requireModerator(event, connectionId, roomId, 'set the story name')
+  if (!room) return { statusCode: 404 }
+  if (!isModerator) return { statusCode: 200 }
+
   const name = (storyName || '').trim().slice(0, 120)
   await updateRoom(roomId, { storyName: name })
 

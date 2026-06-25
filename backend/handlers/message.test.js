@@ -162,8 +162,23 @@ test('SET_DECK: moderator with a valid deck key succeeds and broadcasts DECK_UPD
   assert.strictEqual(payload.deckKey, 'tshirt')
 })
 
-test('UPDATE_STORY: trims and caps story name at 120 chars, broadcasts STORY_UPDATED', async (t) => {
-  mockConnection(t)
+test('UPDATE_STORY: non-moderator is rejected with an ERROR', async (t) => {
+  mockConnection(t, { connectionId: 'c2' })
+  t.mock.method(db, 'getRoom', async () => ({ roomId: '123', moderatorConnectionId: 'c1' }))
+  const updateRoomMock = t.mock.method(db, 'updateRoom', async () => {})
+  const sendToMock = t.mock.method(broadcast, 'sendTo', async () => {})
+
+  const result = await handler()(event('c2', { type: 'UPDATE_STORY', storyName: 'Some story' }))
+
+  assert.strictEqual(result.statusCode, 200)
+  assert.strictEqual(updateRoomMock.mock.callCount(), 0)
+  assert.strictEqual(sendToMock.mock.callCount(), 1)
+  assert.match(sendToMock.mock.calls[0].arguments[2].message, /moderator/i)
+})
+
+test('UPDATE_STORY: moderator trims and caps story name at 120 chars, broadcasts STORY_UPDATED', async (t) => {
+  mockConnection(t, { connectionId: 'c1' })
+  t.mock.method(db, 'getRoom', async () => ({ roomId: '123', moderatorConnectionId: 'c1' }))
   const updateRoomMock = t.mock.method(db, 'updateRoom', async () => {})
   t.mock.method(db, 'getConnectionsByRoom', async () => [])
   const broadcastMock = t.mock.method(broadcast, 'broadcastToRoom', async () => {})
