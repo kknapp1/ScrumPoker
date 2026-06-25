@@ -109,3 +109,29 @@ test('lobby, name entry, and room page fit within a 320px viewport', async ({ br
 
   await context.close()
 })
+
+// Regression test for #71: a selected card must show .selected styling,
+// not a stuck .hover state. jsdom (Vitest's unit test environment) doesn't
+// compute real CSS cascade/specificity, so this can only be verified in a
+// real browser. Root cause was `.card:hover` having higher specificity
+// (3 selectors) than `.card.selected` (2 selectors), so hover always won
+// when both matched — harmless on desktop (corrects itself once the mouse
+// leaves) but mobile browsers keep matching :hover after a tap with no
+// real "mouse leave" to end it, leaving the card stuck looking hovered.
+// `.hover()` here leaves Playwright's synthetic mouse positioned over the
+// element, which reliably reproduces "card is both :hover and .selected
+// at once" regardless of touch-emulation quirks.
+test('a selected card shows selected styling even while hovered, not stuck hover styling', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Create Room' }).click()
+  await enterName(page, 'Alice')
+  await expect(page.getByText('Alice (you)')).toBeVisible({ timeout: 10000 })
+
+  const card = page.getByRole('button', { name: 'Vote 5' })
+  await card.click()
+  await card.hover()
+
+  await expect(card).toHaveCSS('background-color', 'rgb(37, 99, 235)')
+  const translateY = await card.evaluate(el => new DOMMatrix(getComputedStyle(el).transform).m42)
+  expect(translateY).toBeCloseTo(-10, 0)
+})

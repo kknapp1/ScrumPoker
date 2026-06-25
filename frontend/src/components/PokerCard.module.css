@@ -19,7 +19,14 @@
   padding: 0;
 }
 
-.card:hover:not(:disabled) {
+/* :not(.selected) matters more than it looks: .card:hover (3 selectors)
+   otherwise beats .card.selected (2 selectors) on specificity alone, so
+   hovering an already-selected card would show hover styling instead of
+   selected styling. Harmless on desktop (corrects itself once the mouse
+   leaves), but mobile browsers keep matching :hover after a tap with no
+   real "mouse leave" to end it — without this exclusion, tapping a card
+   left it stuck looking hovered instead of selected. */
+.card:hover:not(:disabled):not(.selected) {
   background: var(--color-card-hover-bg);
   border-color: var(--color-card-hover-border);
   transform: translateY(-6px);
