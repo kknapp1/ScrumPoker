@@ -114,6 +114,26 @@ WebSocket URL doesn't exist until Terraform creates it. This build/release
 split is intentional (the artifact that gets deployed is the exact one that
 was built, not a re-build).
 
+## Frontend theming
+
+Visual theme is selected at **build time**, not a runtime UI toggle.
+`frontend/src/main.jsx` imports the bare specifier `'theme-active'`, which
+`vite.config.js` aliases to `src/themes/<VITE_THEME>.css` (defaults to
+`default` if `VITE_THEME` is unset). In CI, `deploy-sandbox.yml` sources
+`VITE_THEME` from the GitHub Environment variable `vars.SCRUM_POKER_THEME`
+(same per-environment-variable pattern as `SCRUM_POKER_BUCKET` — unset
+today, so sandbox currently builds the default theme).
+
+To add a new theme: copy `frontend/src/themes/default.css`, change the
+CSS variable values (component styles reference only these variables —
+never hardcode a brand color directly in a component's `.module.css`;
+that defeats the whole mechanism, and happened once already with a
+literal `rgba(37, 99, 235, ...)` focus-ring color baked into three
+component files before `--color-focus-ring` existed as a variable).
+`themes/younglife.css` is a real second theme (Young Life's actual brand
+colors/fonts, pulled from younglife.org's own page source) usable as a
+reference.
+
 ## AWS SSO profiles (local dev, ~/.aws/config)
 
 - `default` — legacy-style SSO config, no `sso-session` block

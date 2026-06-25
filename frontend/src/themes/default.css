@@ -1,12 +1,15 @@
 /*
  * DEFAULT THEME — Scrum Poker
  *
- * To create a new theme, copy this file (e.g. themes/acme-corp.css),
- * update the values below, and import it in src/main.jsx instead.
+ * To create a new theme: copy this file (e.g. themes/acme-corp.css),
+ * update the values below, then build/deploy with VITE_THEME=acme-corp
+ * (see vite.config.js's alias config — main.jsx imports a fixed
+ * 'theme-active' specifier, aliased at build time to whichever theme
+ * file VITE_THEME names; no code change needed to switch themes).
  * All component styles reference only these variables — no theme-specific
  * values should appear anywhere else in the codebase.
  *
- * Future: team/corporate themes will live here as separate files.
+ * See themes/younglife.css for a real example.
  */
 
 :root {
@@ -14,6 +17,7 @@
   --color-primary:          #2563eb;
   --color-primary-hover:    #1d4ed8;
   --color-primary-light:    #eff6ff;
+  --color-focus-ring:       rgba(37, 99, 235, 0.12);
   --color-primary-text:     #ffffff;
 
   /* Surfaces */

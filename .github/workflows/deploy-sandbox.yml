@@ -102,6 +102,9 @@ jobs:
         env:
           VITE_ENV: sandbox
           VITE_WS_ENDPOINT: ${{ steps.tf_outputs.outputs.ws_endpoint }}
+          # Optional per-environment branding (see frontend/src/themes/) —
+          # unset vars.SCRUM_POKER_THEME falls back to the default theme.
+          VITE_THEME: ${{ vars.SCRUM_POKER_THEME }}
 
       # ── Stage build artifact ───────────────────────────────────
       - name: Package build artifact
