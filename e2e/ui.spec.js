@@ -131,7 +131,20 @@ test('a selected card shows selected styling even while hovered, not stuck hover
   await card.click()
   await card.hover()
 
-  await expect(card).toHaveCSS('background-color', 'rgb(37, 99, 235)')
+  // Read the active theme's --color-card-selected-bg variable rather than
+  // hardcoding a color literal — this test runs against whatever theme
+  // sandbox is currently built with (see CLAUDE.md's Theming section),
+  // not always the default theme.
+  const selectedBgRgb = await page.evaluate(() => {
+    const hex = getComputedStyle(document.documentElement).getPropertyValue('--color-card-selected-bg').trim()
+    const probe = document.createElement('div')
+    probe.style.color = hex
+    document.body.appendChild(probe)
+    const rgb = getComputedStyle(probe).color
+    probe.remove()
+    return rgb
+  })
+  await expect(card).toHaveCSS('background-color', selectedBgRgb)
   const translateY = await card.evaluate(el => new DOMMatrix(getComputedStyle(el).transform).m42)
   expect(translateY).toBeCloseTo(-10, 0)
 })
