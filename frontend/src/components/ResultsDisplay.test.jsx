@@ -39,4 +39,39 @@ describe('ResultsDisplay', () => {
     expect(screen.getByText('13')).toBeInTheDocument()
     expect(screen.getByText('Median')).toBeInTheDocument()
   })
+
+  test('non-numeric deck with no consensus shows low/high outliers with names', () => {
+    renderWithRoom(<ResultsDisplay />, {
+      status: ROOM_STATUS.REVEALED,
+      results: {
+        average: null,
+        median: null,
+        low: { value: 'S', names: ['Alice'] },
+        high: { value: 'XL', names: ['Bob', 'Carl'] },
+      },
+      participants: [
+        { name: 'Alice', vote: 'S' },
+        { name: 'Bob', vote: 'XL' },
+        { name: 'Carl', vote: 'XL' },
+      ],
+    })
+    expect(screen.getByText('Lowest')).toBeInTheDocument()
+    expect(screen.getByText('S')).toBeInTheDocument()
+    expect(screen.getByText('Alice')).toBeInTheDocument()
+    expect(screen.getByText('Highest')).toBeInTheDocument()
+    expect(screen.getByText('XL')).toBeInTheDocument()
+    expect(screen.getByText('Bob, Carl')).toBeInTheDocument()
+    expect(screen.queryByText('Average')).not.toBeInTheDocument()
+  })
+
+  test('non-numeric deck with consensus shows only the consensus banner, no outliers', () => {
+    renderWithRoom(<ResultsDisplay />, {
+      status: ROOM_STATUS.REVEALED,
+      results: { average: null, median: null, low: { value: 'M', names: ['Alice', 'Bob'] }, high: { value: 'M', names: ['Alice', 'Bob'] } },
+      participants: [{ name: 'Alice', vote: 'M' }, { name: 'Bob', vote: 'M' }],
+    })
+    expect(screen.getByText(/consensus/i)).toBeInTheDocument()
+    expect(screen.queryByText('Lowest')).not.toBeInTheDocument()
+    expect(screen.queryByText('Highest')).not.toBeInTheDocument()
+  })
 })

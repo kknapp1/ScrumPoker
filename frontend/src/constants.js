@@ -2,18 +2,25 @@
 // Each deck is an array of display values.
 // '☕' = "need a break", '?' = "uncertain / can't estimate"
 
+// `numeric` controls how ResultsDisplay summarizes a revealed round:
+// numeric decks get average/median; non-numeric decks get a low/high
+// outlier display (by ordinal position in `values`) when there's no
+// consensus, since average/median don't mean anything for "S"/"M"/"L".
 export const CARD_DECKS = {
   fibonacci: {
     label: 'Fibonacci',
     values: ['☕', '?', '1', '2', '3', '5', '8', '13'],
+    numeric: true,
   },
   tshirt: {
     label: 'T-Shirt Sizes',
     values: ['☕', '?', 'XS', 'S', 'M', 'L', 'XL', 'XXL'],
+    numeric: false,
   },
   powers: {
     label: 'Powers of 2',
     values: ['☕', '?', '1', '2', '4', '8', '16', '32', '64'],
+    numeric: true,
   },
 }
 

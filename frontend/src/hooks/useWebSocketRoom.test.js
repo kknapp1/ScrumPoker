@@ -111,6 +111,26 @@ describe('useWebSocketRoom', () => {
     expect(result.current.participants.find(p => p.name === 'Bob').vote).toBe('5')
   })
 
+  test('non-numeric deck: VOTES_REVEALED computes low/high outliers by ordinal rank, not average/median', () => {
+    const { result } = renderHook(() => useWebSocketRoom('123', 'Alice'))
+    const socket = latestSocket()
+    connectAndHydrate(socket, {
+      deckKey: 'tshirt',
+      participants: [
+        { userName: 'Alice', hasVoted: false },
+        { userName: 'Bob', hasVoted: false },
+        { userName: 'Carl', hasVoted: false },
+      ],
+    })
+
+    act(() => socket.triggerMessage({ type: 'VOTES_REVEALED', votes: { Alice: 'S', Bob: 'XL', Carl: 'XL' } }))
+
+    expect(result.current.results.average).toBeNull()
+    expect(result.current.results.median).toBeNull()
+    expect(result.current.results.low).toEqual({ value: 'S', names: ['Alice'] })
+    expect(result.current.results.high).toEqual({ value: 'XL', names: ['Bob', 'Carl'] })
+  })
+
   test('ROUND_RESET clears votes and my own selection', () => {
     const { result } = renderHook(() => useWebSocketRoom('123', 'Alice'))
     const socket = latestSocket()

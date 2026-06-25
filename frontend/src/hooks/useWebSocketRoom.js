@@ -210,26 +210,54 @@ export function useWebSocketRoom(roomId, currentUser) {
     return () => clearTimeout(timer)
   }, [lastError])
 
-  // Same average/median computation as useLocalRoom, over the synced
-  // participants list rather than a single-entry local array.
+  // Numeric decks (Fibonacci, Powers of 2): same average/median
+  // computation as useLocalRoom, over the synced participants list
+  // rather than a single-entry local array. Non-numeric decks (T-Shirt
+  // Sizes): average/median don't mean anything, so instead surface the
+  // low/high outlier votes (by ordinal position in the deck's `values`
+  // — already sorted low-to-high — not numeric parsing) along with who
+  // cast them, to spark discussion. ☕/? are excluded from ranking since
+  // they're not estimates.
   const results = (() => {
     if (status !== ROOM_STATUS.REVEALED) return null
-    const numericVotes = participants
-      .map(p => parseFloat(p.vote))
-      .filter(v => !isNaN(v))
 
-    if (numericVotes.length === 0) return { average: null, median: null }
+    if (deck.numeric) {
+      const numericVotes = participants
+        .map(p => parseFloat(p.vote))
+        .filter(v => !isNaN(v))
 
-    const avg = numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length
-    const sorted = [...numericVotes].sort((a, b) => a - b)
-    const mid = Math.floor(sorted.length / 2)
-    const median = sorted.length % 2 === 0
-      ? (sorted[mid - 1] + sorted[mid]) / 2
-      : sorted[mid]
+      if (numericVotes.length === 0) return { average: null, median: null, low: null, high: null }
+
+      const avg = numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length
+      const sorted = [...numericVotes].sort((a, b) => a - b)
+      const mid = Math.floor(sorted.length / 2)
+      const median = sorted.length % 2 === 0
+        ? (sorted[mid - 1] + sorted[mid]) / 2
+        : sorted[mid]
+
+      return {
+        average: Math.round(avg * 10) / 10,
+        median: Math.round(median * 10) / 10,
+        low: null,
+        high: null,
+      }
+    }
+
+    const rankable = deck.values.filter(v => v !== '☕' && v !== '?')
+    const ranked = participants
+      .filter(p => p.vote !== null && rankable.includes(p.vote))
+      .map(p => ({ name: p.name, rank: rankable.indexOf(p.vote) }))
+
+    if (ranked.length === 0) return { average: null, median: null, low: null, high: null }
+
+    const minRank = Math.min(...ranked.map(p => p.rank))
+    const maxRank = Math.max(...ranked.map(p => p.rank))
 
     return {
-      average: Math.round(avg * 10) / 10,
-      median: Math.round(median * 10) / 10,
+      average: null,
+      median: null,
+      low: { value: rankable[minRank], names: ranked.filter(p => p.rank === minRank).map(p => p.name) },
+      high: { value: rankable[maxRank], names: ranked.filter(p => p.rank === maxRank).map(p => p.name) },
     }
   })()
 

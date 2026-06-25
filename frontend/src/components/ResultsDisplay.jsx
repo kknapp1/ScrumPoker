@@ -4,7 +4,10 @@ import styles from './ResultsDisplay.module.css'
 
 /**
  * ResultsDisplay — shown after votes are revealed.
- * Displays average, median, and a consensus indicator.
+ * Numeric decks: average, median, vote count, and a consensus indicator.
+ * Non-numeric decks (e.g. T-Shirt Sizes): consensus indicator, or — when
+ * there's no consensus — the low/high outlier votes with who cast them,
+ * since average/median aren't meaningful for those decks.
  */
 export default function ResultsDisplay() {
   const { status, results, participants } = useRoom()
@@ -41,6 +44,21 @@ export default function ResultsDisplay() {
           <span className={styles.statLabel}>Votes cast</span>
         </div>
       </div>
+
+      {!isConsensus && results.low && results.high && (
+        <div className={styles.outliers}>
+          <div className={styles.outlierItem}>
+            <span className={styles.outlierLabel}>Lowest</span>
+            <span className={styles.outlierValue}>{results.low.value}</span>
+            <span className={styles.outlierNames}>{results.low.names.join(', ')}</span>
+          </div>
+          <div className={styles.outlierItem}>
+            <span className={styles.outlierLabel}>Highest</span>
+            <span className={styles.outlierValue}>{results.high.value}</span>
+            <span className={styles.outlierNames}>{results.high.names.join(', ')}</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
