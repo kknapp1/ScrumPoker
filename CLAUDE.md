@@ -94,6 +94,14 @@ account. It's exposed as both `env.SCRUM_POKER_BUCKET` (used directly in s3
 paths and `-backend-config`) and `TF_VAR_bucket_name` (picked up automatically
 by Terraform).
 
+Same pattern for `vars.SCRUM_POKER_APPLICATION_TAG` — bootstrap's
+`application_tag` output (a JSON object like `{"awsApplication":"arn:..."}`),
+exposed as `TF_VAR_application_tag` so every resource in `envs/<env>`
+associates with the `scrum-poker` AppRegistry Application (unified cost/usage
+tracking in AWS's myApplications console). Both of these per-account GitHub
+Environment variables need to be (re)set manually after bootstrap creates or
+updates the bucket/Application for a given account.
+
 Flow: install backend deps (`npm ci` — needed on disk for Terraform's
 `archive_file` to zip into the Lambda package) → terraform apply (creates/
 updates DynamoDB tables, Lambda, API Gateway; outputs `websocket_endpoint`)
