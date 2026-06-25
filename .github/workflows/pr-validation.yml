@@ -8,6 +8,16 @@ permissions:
   contents: read
 
 jobs:
+  commitlint:
+    name: Commit message lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: wagoid/commitlint-github-action@v6
+
   frontend:
     name: Frontend lint + build
     runs-on: ubuntu-latest

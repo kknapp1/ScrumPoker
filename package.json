@@ -1,0 +1,13 @@
+{
+  "name": "scrum-poker",
+  "private": true,
+  "description": "Release tooling only — frontend/ and backend/ are the actual app packages. This repo-root package.json exists solely to host semantic-release and commitlint as dev tools, since the app is a single deployed unit versioned as one whole (not published npm packages).",
+  "devDependencies": {
+    "semantic-release": "^24.0.0",
+    "@semantic-release/commit-analyzer": "^13.0.0",
+    "@semantic-release/release-notes-generator": "^14.0.0",
+    "@semantic-release/github": "^11.0.0",
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0"
+  }
+}
