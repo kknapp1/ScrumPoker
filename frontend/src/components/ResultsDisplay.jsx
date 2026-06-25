@@ -4,10 +4,10 @@ import styles from './ResultsDisplay.module.css'
 
 /**
  * ResultsDisplay — shown after votes are revealed.
- * Numeric decks: average, median, vote count, and a consensus indicator.
- * Non-numeric decks (e.g. T-Shirt Sizes): consensus indicator, or — when
- * there's no consensus — the low/high outlier votes with who cast them,
- * since average/median aren't meaningful for those decks.
+ * Consensus indicator, vote count, or — when there's no consensus — the
+ * low/high outlier votes with who cast them. No average/median: averaging
+ * a deck's labels (whether "1"/"13" or "S"/"XL") doesn't produce a number
+ * anyone actually voted for, so it isn't a meaningful estimate for any deck.
  */
 export default function ResultsDisplay() {
   const { status, results, participants } = useRoom()
@@ -27,18 +27,6 @@ export default function ResultsDisplay() {
       )}
 
       <div className={styles.stats}>
-        {results.average !== null && (
-          <div className={styles.stat}>
-            <span className={styles.statValue}>{results.average}</span>
-            <span className={styles.statLabel}>Average</span>
-          </div>
-        )}
-        {results.median !== null && (
-          <div className={styles.stat}>
-            <span className={styles.statValue}>{results.median}</span>
-            <span className={styles.statLabel}>Median</span>
-          </div>
-        )}
         <div className={styles.stat}>
           <span className={styles.statValue}>{votes.length}</span>
           <span className={styles.statLabel}>Votes cast</span>
