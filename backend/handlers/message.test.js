@@ -208,6 +208,7 @@ test('REQUEST_ROOM_STATE: hasVoted reflects real votes, value only included once
   const payload = sendToMock.mock.calls[0].arguments[2]
   assert.strictEqual(payload.type, 'ROOM_STATE')
   assert.strictEqual(payload.room.isModerator, true)
+  assert.strictEqual(payload.room.hasActiveModerator, true)
   const alice = payload.room.participants.find(p => p.userName === 'Alice')
   const bob = payload.room.participants.find(p => p.userName === 'Bob')
   assert.strictEqual(alice.hasVoted, true)
@@ -230,8 +231,65 @@ test('REQUEST_ROOM_STATE: includes actual vote values once the room is revealed'
   assert.strictEqual(alice.value, '5')
 })
 
+test('REQUEST_ROOM_STATE: hasActiveModerator is false when the moderator connection is not in the active connections list', async (t) => {
+  mockConnection(t, { connectionId: 'c2', userName: 'Bob' })
+  t.mock.method(db, 'getRoom', async () => ({
+    roomId: '123', status: 'voting', storyName: '', deckKey: 'fibonacci', moderatorConnectionId: 'c1',
+  }))
+  t.mock.method(db, 'getConnectionsByRoom', async () => [{ connectionId: 'c2', userName: 'Bob' }])
+  t.mock.method(db, 'getVotesByRoom', async () => [])
+  const sendToMock = t.mock.method(broadcast, 'sendTo', async () => {})
+
+  await handler()(event('c2', { type: 'REQUEST_ROOM_STATE' }))
+
+  const payload = sendToMock.mock.calls[0].arguments[2]
+  assert.strictEqual(payload.room.isModerator, false)
+  assert.strictEqual(payload.room.hasActiveModerator, false)
+})
+
 test('rejects an unknown message type', async (t) => {
   mockConnection(t)
   const result = await handler()(event('c1', { type: 'NOT_A_REAL_TYPE' }))
   assert.strictEqual(result.statusCode, 400)
+})
+
+test('CLAIM_MODERATOR: rejected with an ERROR when the moderator is still connected', async (t) => {
+  mockConnection(t, { connectionId: 'c2', userName: 'Bob' })
+  t.mock.method(db, 'getRoom', async () => ({ roomId: '123', moderatorConnectionId: 'c1' }))
+  t.mock.method(db, 'getConnectionsByRoom', async () => [
+    { connectionId: 'c1', userName: 'Alice' },
+    { connectionId: 'c2', userName: 'Bob' },
+  ])
+  const updateRoomMock = t.mock.method(db, 'updateRoom', async () => {})
+  const sendToMock = t.mock.method(broadcast, 'sendTo', async () => {})
+  const broadcastMock = t.mock.method(broadcast, 'broadcastToRoom', async () => {})
+
+  const result = await handler()(event('c2', { type: 'CLAIM_MODERATOR' }))
+
+  assert.strictEqual(result.statusCode, 200)
+  assert.strictEqual(updateRoomMock.mock.callCount(), 0)
+  assert.strictEqual(broadcastMock.mock.callCount(), 0)
+  const payload = sendToMock.mock.calls[0].arguments[2]
+  assert.strictEqual(payload.type, 'ERROR')
+})
+
+test('CLAIM_MODERATOR: succeeds and broadcasts MODERATOR_CHANGED when the moderator connection is not in the active connections list', async (t) => {
+  mockConnection(t, { connectionId: 'c2', userName: 'Bob' })
+  t.mock.method(db, 'getRoom', async () => ({ roomId: '123', moderatorConnectionId: 'c1' }))
+  const connections = [{ connectionId: 'c2', userName: 'Bob' }]
+  t.mock.method(db, 'getConnectionsByRoom', async () => connections)
+  const updateRoomMock = t.mock.method(db, 'updateRoom', async () => {})
+  const broadcastMock = t.mock.method(broadcast, 'broadcastToRoom', async () => {})
+
+  const result = await handler()(event('c2', { type: 'CLAIM_MODERATOR' }))
+
+  assert.strictEqual(result.statusCode, 200)
+  assert.strictEqual(updateRoomMock.mock.callCount(), 1)
+  assert.strictEqual(updateRoomMock.mock.calls[0].arguments[0], '123')
+  assert.deepStrictEqual(updateRoomMock.mock.calls[0].arguments[1], { moderatorConnectionId: 'c2' })
+  assert.strictEqual(broadcastMock.mock.callCount(), 1)
+  const [, connectionsArg, payload] = broadcastMock.mock.calls[0].arguments
+  assert.deepStrictEqual(connectionsArg, connections)
+  assert.strictEqual(payload.type, 'MODERATOR_CHANGED')
+  assert.strictEqual(payload.userName, 'Bob')
 })

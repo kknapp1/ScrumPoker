@@ -20,6 +20,20 @@ describe('VoteControls', () => {
     expect(screen.getByText(/waiting for the moderator/i)).toBeInTheDocument()
   })
 
+  test('non-moderator sees a Claim Moderator button when there is no active moderator', () => {
+    renderWithRoom(<VoteControls />, { isModerator: false, hasActiveModerator: false })
+    expect(screen.queryByText(/waiting for the moderator/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/no active moderator/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /claim moderator/i })).toBeInTheDocument()
+  })
+
+  test('clicking Claim Moderator calls claimModerator()', () => {
+    const claimModerator = vi.fn()
+    renderWithRoom(<VoteControls />, { isModerator: false, hasActiveModerator: false, claimModerator })
+    fireEvent.click(screen.getByRole('button', { name: /claim moderator/i }))
+    expect(claimModerator).toHaveBeenCalledOnce()
+  })
+
   test('Reveal button disabled when nobody has voted yet', () => {
     renderWithRoom(<VoteControls />, { isModerator: true, participants: [{ name: 'Alice', vote: null }] })
     expect(screen.getByRole('button', { name: /no votes to reveal yet|reveal cards/i })).toBeDisabled()
