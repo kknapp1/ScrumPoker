@@ -7,7 +7,7 @@ import styles from './VoteControls.module.css'
  * Non-moderators see a status line instead of dead/disabled buttons.
  */
 export default function VoteControls() {
-  const { status, reveal, reset, participants, isModerator } = useRoom()
+  const { status, reveal, reset, participants, isModerator, hasActiveModerator, claimModerator } = useRoom()
   const isRevealed = status === ROOM_STATUS.REVEALED
 
   const votedCount = participants.filter(p => p.vote !== null).length
@@ -17,9 +17,24 @@ export default function VoteControls() {
   if (!isModerator) {
     return (
       <div className={styles.controls}>
-        <p className={styles.moderatorNotice}>
-          Waiting for the moderator to {isRevealed ? 'start a new round' : 'reveal votes'}.
-        </p>
+        {hasActiveModerator ? (
+          <p className={styles.moderatorNotice}>
+            Waiting for the moderator to {isRevealed ? 'start a new round' : 'reveal votes'}.
+          </p>
+        ) : (
+          <>
+            <p className={styles.moderatorNotice}>
+              No active moderator.
+            </p>
+            <button
+              className={styles.resetButton}
+              onClick={claimModerator}
+              title="Become the moderator for this room"
+            >
+              Claim Moderator
+            </button>
+          </>
+        )}
       </div>
     )
   }

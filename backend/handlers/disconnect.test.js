@@ -4,8 +4,15 @@ const db = require('../lib/db')
 const broadcast = require('../lib/broadcast')
 const { freshRequire } = require('./test-helpers')
 
-function event(connectionId) {
-  return { requestContext: { connectionId, domainName: 'example.execute-api.us-east-2.amazonaws.com', stage: 'sandbox' } }
+function event(connectionId, disconnectStatusCode) {
+  return {
+    requestContext: {
+      connectionId,
+      domainName: 'example.execute-api.us-east-2.amazonaws.com',
+      stage: 'sandbox',
+      disconnectStatusCode,
+    },
+  }
 }
 
 function handler() {
@@ -27,9 +34,10 @@ test('deletes the connection and broadcasts PARTICIPANT_LEFT to remaining partic
   const deleteMock = t.mock.method(db, 'deleteConnection', async () => {})
   const remaining = [{ connectionId: 'c2', userName: 'Bob' }]
   t.mock.method(db, 'getConnectionsByRoom', async () => remaining)
+  t.mock.method(db, 'getRoom', async () => ({ roomId: '123', moderatorConnectionId: 'c2' }))
   const broadcastMock = t.mock.method(broadcast, 'broadcastToRoom', async () => {})
 
-  const result = await handler()(event('c1'))
+  const result = await handler()(event('c1', 1000))
 
   assert.strictEqual(result.statusCode, 200)
   assert.strictEqual(deleteMock.mock.callCount(), 1)
@@ -40,4 +48,102 @@ test('deletes the connection and broadcasts PARTICIPANT_LEFT to remaining partic
   assert.strictEqual(payload.type, 'PARTICIPANT_LEFT')
   assert.strictEqual(payload.userName, 'Alice')
   assert.strictEqual(payload.participantCount, 1)
+  assert.strictEqual(payload.wasModerator, false)
+})
+
+test('reassigns the moderator and broadcasts MODERATOR_CHANGED when the moderator explicitly disconnects (close code 1000)', async (t) => {
+  t.mock.method(db, 'getConnection', async () => ({ connectionId: 'c1', roomId: '123', userName: 'Alice' }))
+  t.mock.method(db, 'deleteConnection', async () => {})
+  const remaining = [{ connectionId: 'c2', userName: 'Bob' }, { connectionId: 'c3', userName: 'Carol' }]
+  t.mock.method(db, 'getConnectionsByRoom', async () => remaining)
+  t.mock.method(db, 'getRoom', async () => ({ roomId: '123', moderatorConnectionId: 'c1' }))
+  const updateRoomMock = t.mock.method(db, 'updateRoom', async () => {})
+  const broadcastMock = t.mock.method(broadcast, 'broadcastToRoom', async () => {})
+
+  const result = await handler()(event('c1', 1000))
+
+  assert.strictEqual(result.statusCode, 200)
+  assert.strictEqual(updateRoomMock.mock.callCount(), 1)
+  assert.strictEqual(updateRoomMock.mock.calls[0].arguments[0], '123')
+  assert.deepStrictEqual(updateRoomMock.mock.calls[0].arguments[1], { moderatorConnectionId: 'c2' })
+
+  assert.strictEqual(broadcastMock.mock.callCount(), 2)
+  const [, , firstPayload] = broadcastMock.mock.calls[0].arguments
+  assert.strictEqual(firstPayload.wasModerator, true)
+  const [, , secondPayload] = broadcastMock.mock.calls[1].arguments
+  assert.strictEqual(secondPayload.type, 'MODERATOR_CHANGED')
+  assert.strictEqual(secondPayload.userName, 'Bob')
+})
+
+test('does NOT reassign the moderator on a non-explicit disconnect (idle timeout / dropped connection)', async (t) => {
+  t.mock.method(db, 'getConnection', async () => ({ connectionId: 'c1', roomId: '123', userName: 'Alice' }))
+  t.mock.method(db, 'deleteConnection', async () => {})
+  const remaining = [{ connectionId: 'c2', userName: 'Bob' }]
+  t.mock.method(db, 'getConnectionsByRoom', async () => remaining)
+  t.mock.method(db, 'getRoom', async () => ({ roomId: '123', moderatorConnectionId: 'c1' }))
+  const updateRoomMock = t.mock.method(db, 'updateRoom', async () => {})
+  const broadcastMock = t.mock.method(broadcast, 'broadcastToRoom', async () => {})
+
+  // 1001 = API Gateway idle timeout; undefined disconnectStatusCode covers
+  // abnormal closures (e.g. 1006, or no close frame at all).
+  const idleResult = await handler()(event('c1', 1001))
+  assert.strictEqual(idleResult.statusCode, 200)
+  assert.strictEqual(updateRoomMock.mock.callCount(), 0)
+
+  // Only PARTICIPANT_LEFT is broadcast — no follow-up MODERATOR_CHANGED,
+  // which is the key behavior difference from an explicit disconnect.
+  assert.strictEqual(broadcastMock.mock.callCount(), 1)
+  const [, , payload] = broadcastMock.mock.calls[0].arguments
+  assert.strictEqual(payload.type, 'PARTICIPANT_LEFT')
+  assert.strictEqual(payload.wasModerator, true)
+})
+
+test('does NOT reassign the moderator on an abnormal closure (no disconnectStatusCode, e.g. 1006 or a dropped connection)', async (t) => {
+  t.mock.method(db, 'getConnection', async () => ({ connectionId: 'c1', roomId: '123', userName: 'Alice' }))
+  t.mock.method(db, 'deleteConnection', async () => {})
+  const remaining = [{ connectionId: 'c2', userName: 'Bob' }]
+  t.mock.method(db, 'getConnectionsByRoom', async () => remaining)
+  t.mock.method(db, 'getRoom', async () => ({ roomId: '123', moderatorConnectionId: 'c1' }))
+  const updateRoomMock = t.mock.method(db, 'updateRoom', async () => {})
+  const broadcastMock = t.mock.method(broadcast, 'broadcastToRoom', async () => {})
+
+  const result = await handler()(event('c1', undefined))
+
+  assert.strictEqual(result.statusCode, 200)
+  assert.strictEqual(updateRoomMock.mock.callCount(), 0)
+  assert.strictEqual(broadcastMock.mock.callCount(), 1)
+  const [, , payload] = broadcastMock.mock.calls[0].arguments
+  assert.strictEqual(payload.type, 'PARTICIPANT_LEFT')
+  assert.strictEqual(payload.wasModerator, true)
+})
+
+test('does not reassign moderator when a non-moderator disconnects', async (t) => {
+  t.mock.method(db, 'getConnection', async () => ({ connectionId: 'c2', roomId: '123', userName: 'Bob' }))
+  t.mock.method(db, 'deleteConnection', async () => {})
+  const remaining = [{ connectionId: 'c1', userName: 'Alice' }]
+  t.mock.method(db, 'getConnectionsByRoom', async () => remaining)
+  t.mock.method(db, 'getRoom', async () => ({ roomId: '123', moderatorConnectionId: 'c1' }))
+  const updateRoomMock = t.mock.method(db, 'updateRoom', async () => {})
+  const broadcastMock = t.mock.method(broadcast, 'broadcastToRoom', async () => {})
+
+  const result = await handler()(event('c2', 1000))
+
+  assert.strictEqual(result.statusCode, 200)
+  assert.strictEqual(updateRoomMock.mock.callCount(), 0)
+  assert.strictEqual(broadcastMock.mock.callCount(), 1)
+})
+
+test('does not error when the moderator explicitly disconnects and no other participants remain', async (t) => {
+  t.mock.method(db, 'getConnection', async () => ({ connectionId: 'c1', roomId: '123', userName: 'Alice' }))
+  t.mock.method(db, 'deleteConnection', async () => {})
+  t.mock.method(db, 'getConnectionsByRoom', async () => [])
+  t.mock.method(db, 'getRoom', async () => ({ roomId: '123', moderatorConnectionId: 'c1' }))
+  const updateRoomMock = t.mock.method(db, 'updateRoom', async () => {})
+  const broadcastMock = t.mock.method(broadcast, 'broadcastToRoom', async () => {})
+
+  const result = await handler()(event('c1', 1000))
+
+  assert.strictEqual(result.statusCode, 200)
+  assert.strictEqual(updateRoomMock.mock.callCount(), 0)
+  assert.strictEqual(broadcastMock.mock.callCount(), 1)
 })

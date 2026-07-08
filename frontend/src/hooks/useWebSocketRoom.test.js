@@ -98,6 +98,57 @@ describe('useWebSocketRoom', () => {
     expect(result.current.participants.filter(p => p.name === 'Bob')).toHaveLength(1)
   })
 
+  test('MODERATOR_CHANGED sets isModerator based on whose name matches', () => {
+    const { result } = renderHook(() => useWebSocketRoom('123', 'Alice'))
+    const socket = latestSocket()
+    connectAndHydrate(socket, { isModerator: false })
+
+    expect(result.current.isModerator).toBe(false)
+
+    act(() => socket.triggerMessage({ type: 'MODERATOR_CHANGED', userName: 'Alice' }))
+    expect(result.current.isModerator).toBe(true)
+
+    act(() => socket.triggerMessage({ type: 'MODERATOR_CHANGED', userName: 'Bob' }))
+    expect(result.current.isModerator).toBe(false)
+  })
+
+  test('PARTICIPANT_LEFT with wasModerator clears hasActiveModerator', () => {
+    const { result } = renderHook(() => useWebSocketRoom('123', 'Alice'))
+    const socket = latestSocket()
+    connectAndHydrate(socket)
+
+    expect(result.current.hasActiveModerator).toBe(true)
+
+    act(() => socket.triggerMessage({ type: 'PARTICIPANT_LEFT', userName: 'Bob', wasModerator: false }))
+    expect(result.current.hasActiveModerator).toBe(true)
+
+    act(() => socket.triggerMessage({ type: 'PARTICIPANT_LEFT', userName: 'Alice', wasModerator: true }))
+    expect(result.current.hasActiveModerator).toBe(false)
+  })
+
+  test('claimModerator sends a CLAIM_MODERATOR message', () => {
+    const { result } = renderHook(() => useWebSocketRoom('123', 'Alice'))
+    const socket = latestSocket()
+    connectAndHydrate(socket)
+
+    act(() => result.current.claimModerator())
+    expect(socket.sent).toContainEqual({ type: 'CLAIM_MODERATOR' })
+  })
+
+  test('MODERATOR_CHANGED restores hasActiveModerator to true', () => {
+    const { result } = renderHook(() => useWebSocketRoom('123', 'Alice'))
+    const socket = latestSocket()
+    connectAndHydrate(socket)
+
+    // Realistic sequence: the moderator's connection drops (PARTICIPANT_LEFT
+    // with wasModerator) before someone claims the role (MODERATOR_CHANGED).
+    act(() => socket.triggerMessage({ type: 'PARTICIPANT_LEFT', userName: 'Alice', wasModerator: true }))
+    expect(result.current.hasActiveModerator).toBe(false)
+
+    act(() => socket.triggerMessage({ type: 'MODERATOR_CHANGED', userName: 'Bob' }))
+    expect(result.current.hasActiveModerator).toBe(true)
+  })
+
   test('VOTE_CAST then VOTES_REVEALED reveals the real value', () => {
     const { result } = renderHook(() => useWebSocketRoom('123', 'Alice'))
     const socket = latestSocket()

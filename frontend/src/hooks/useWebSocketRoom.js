@@ -21,6 +21,7 @@ export function useWebSocketRoom(roomId, currentUser) {
   const [myVote, setMyVote] = useState(null)
   const [participants, setParticipants] = useState([])
   const [isModerator, setIsModerator] = useState(false)
+  const [hasActiveModerator, setHasActiveModerator] = useState(true)
   const [isConnected, setIsConnected] = useState(false)
   const [connectionError, setConnectionError] = useState(null)
   const [lastError, setLastError] = useState(null)
@@ -49,6 +50,7 @@ export function useWebSocketRoom(roomId, currentUser) {
           setDeckKeyState(room.deckKey || DEFAULT_DECK)
           setStoryNameState(room.storyName || '')
           setIsModerator(!!room.isModerator)
+          setHasActiveModerator(room.hasActiveModerator !== false)
           setParticipants(
             (room.participants || []).map(p => ({
               name: p.userName,
@@ -73,6 +75,13 @@ export function useWebSocketRoom(roomId, currentUser) {
 
         case WS_EVENTS.PARTICIPANT_LEFT: {
           setParticipants(prev => prev.filter(p => p.name !== msg.userName))
+          if (msg.wasModerator) setHasActiveModerator(false)
+          break
+        }
+
+        case WS_EVENTS.MODERATOR_CHANGED: {
+          setIsModerator(msg.userName === currentUser)
+          setHasActiveModerator(true)
           break
         }
 
@@ -202,6 +211,10 @@ export function useWebSocketRoom(roomId, currentUser) {
     send({ type: WS_EVENTS.SET_DECK, deckKey: key })
   }, [send])
 
+  const claimModerator = useCallback(() => {
+    send({ type: WS_EVENTS.CLAIM_MODERATOR })
+  }, [send])
+
   // Transient errors (e.g. "Only the moderator can...") auto-dismiss rather
   // than lingering until the next one replaces them.
   useEffect(() => {
@@ -252,6 +265,8 @@ export function useWebSocketRoom(roomId, currentUser) {
     reset,
     results,
     isModerator,
+    hasActiveModerator,
+    claimModerator,
     isConnected,
     connectionError,
     lastError,

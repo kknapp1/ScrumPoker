@@ -19,6 +19,8 @@ export function renderWithRoom(ui, roomOverrides = {}) {
     reset: () => {},
     results: null,
     isModerator: true,
+    hasActiveModerator: true,
+    claimModerator: () => {},
     isConnected: true,
     connectionError: null,
     lastError: null,

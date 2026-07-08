@@ -45,6 +45,9 @@ exports.handler = async (event) => {
       case 'REQUEST_ROOM_STATE':
         return handleRequestRoomState(event, connectionId, roomId)
 
+      case 'CLAIM_MODERATOR':
+        return handleClaimModerator(event, connectionId, roomId, userName)
+
       default:
         return { statusCode: 400, body: `Unknown message type: ${type}` }
     }
@@ -174,6 +177,7 @@ async function handleRequestRoomState(event, connectionId, roomId) {
       storyName: room.storyName,
       deckKey: room.deckKey,
       isModerator: room.moderatorConnectionId === connectionId,
+      hasActiveModerator: connections.some(c => c.connectionId === room.moderatorConnectionId),
       participants: connections.map(c => ({
         userName: c.userName,
         hasVoted: voteMap[c.userName] !== undefined,
@@ -200,6 +204,39 @@ async function handleUpdateStory(event, connectionId, roomId, storyName) {
   await broadcastToRoom(event, connections, {
     type: 'STORY_UPDATED',
     storyName: name,
+  })
+
+  return { statusCode: 200 }
+}
+
+// Workaround for cases where the moderator's connection dies without an
+// explicit disconnect (idle timeout, dropped network, browser crash) —
+// disconnect.js deliberately does NOT auto-reassign the moderator in
+// those cases (see disconnect.js's isExplicitDisconnect), since that
+// connection may still reconnect momentarily and shouldn't lose the role
+// to a race. If the moderator's connection is confirmed gone (no longer
+// among the room's live connections), any remaining participant can
+// claim the role instead of the room being stuck moderator-less forever.
+async function handleClaimModerator(event, connectionId, roomId, userName) {
+  const room = await getRoom(roomId)
+  if (!room) return { statusCode: 404 }
+
+  const connections = await getConnectionsByRoom(roomId)
+  const moderatorStillConnected = connections.some(c => c.connectionId === room.moderatorConnectionId)
+
+  if (moderatorStillConnected) {
+    const apigw = makeClient(event)
+    await sendTo(apigw, connectionId, {
+      type: 'ERROR',
+      message: 'The moderator is still connected',
+    })
+    return { statusCode: 200 }
+  }
+
+  await updateRoom(roomId, { moderatorConnectionId: connectionId })
+  await broadcastToRoom(event, connections, {
+    type: 'MODERATOR_CHANGED',
+    userName,
   })
 
   return { statusCode: 200 }
