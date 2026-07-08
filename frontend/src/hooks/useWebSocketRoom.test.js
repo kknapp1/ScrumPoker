@@ -98,6 +98,20 @@ describe('useWebSocketRoom', () => {
     expect(result.current.participants.filter(p => p.name === 'Bob')).toHaveLength(1)
   })
 
+  test('MODERATOR_CHANGED sets isModerator based on whose name matches', () => {
+    const { result } = renderHook(() => useWebSocketRoom('123', 'Alice'))
+    const socket = latestSocket()
+    connectAndHydrate(socket, { isModerator: false })
+
+    expect(result.current.isModerator).toBe(false)
+
+    act(() => socket.triggerMessage({ type: 'MODERATOR_CHANGED', userName: 'Alice' }))
+    expect(result.current.isModerator).toBe(true)
+
+    act(() => socket.triggerMessage({ type: 'MODERATOR_CHANGED', userName: 'Bob' }))
+    expect(result.current.isModerator).toBe(false)
+  })
+
   test('VOTE_CAST then VOTES_REVEALED reveals the real value', () => {
     const { result } = renderHook(() => useWebSocketRoom('123', 'Alice'))
     const socket = latestSocket()

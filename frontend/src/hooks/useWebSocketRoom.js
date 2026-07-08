@@ -76,6 +76,11 @@ export function useWebSocketRoom(roomId, currentUser) {
           break
         }
 
+        case WS_EVENTS.MODERATOR_CHANGED: {
+          setIsModerator(msg.userName === currentUser)
+          break
+        }
+
         case WS_EVENTS.VOTE_CAST: {
           // Hidden-value placeholder — actual value only arrives via VOTES_REVEALED.
           setParticipants(prev => prev.map(p => (p.name === msg.userName ? { ...p, vote: true } : p)))
