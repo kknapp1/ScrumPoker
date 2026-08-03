@@ -9,7 +9,7 @@
     "test:ui": "playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.0",
+    "@playwright/test": "^1.62.1",
     "ws": "^8.21.1"
   }
 }
